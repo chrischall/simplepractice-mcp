@@ -6,21 +6,27 @@
   },
   "metadata": {
     "description": "SimplePractice Client Portal tools for Claude",
-    "version": "0.0.0"
+    "version": "0.1.0"
   },
   "plugins": [
     {
       "name": "simplepractice",
       "source": "./",
       "description": "Read a SimplePractice Client Portal — appointments, invoices and superbills, documents to sign, and practice announcements. Signs in with the portal's own passwordless emailed link; requests go straight to the portal's JSON:API over your own session.",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "author": {
         "name": "Chris Chall",
         "url": "https://github.com/chrischall"
       },
       "homepage": "https://github.com/chrischall/simplepractice-mcp",
       "license": "MIT",
-      "keywords": ["simplepractice", "client-portal", "therapy", "appointments", "billing"]
+      "keywords": [
+        "simplepractice",
+        "client-portal",
+        "therapy",
+        "appointments",
+        "billing"
+      ]
     }
   ]
 }

@@ -3,8 +3,8 @@
   "manifest_version": "0.3",
   "name": "simplepractice-mcp",
   "display_name": "SimplePractice Client Portal",
-  "version": "0.0.0",
-  "description": "SimplePractice Client Portal for Claude \u2014 appointments, billing, documents, and announcements",
+  "version": "0.1.0",
+  "description": "SimplePractice Client Portal for Claude — appointments, billing, documents, and announcements",
   "author": {
     "name": "Chris Chall",
     "email": "chris.c.hall@gmail.com",
@@ -44,7 +44,7 @@
     "simplepractice_practice": {
       "type": "string",
       "title": "Client Portal address",
-      "description": "Your practice's Client Portal address \u2014 either the slug (\"achievebalancetherapy\") or the full host (\"achievebalancetherapy.clientsecure.me\"). It is the host in the portal link your provider emailed you.",
+      "description": "Your practice's Client Portal address — either the slug (\"achievebalancetherapy\") or the full host (\"achievebalancetherapy.clientsecure.me\"). It is the host in the portal link your provider emailed you.",
       "required": true
     },
     "simplepractice_session_file": {
@@ -93,7 +93,7 @@
     },
     {
       "name": "simplepractice_list_payment_methods",
-      "description": "Payment methods saved to the portal \u2014 brand, last four, expiry."
+      "description": "Payment methods saved to the portal — brand, last four, expiry."
     },
     {
       "name": "simplepractice_list_document_requests",
