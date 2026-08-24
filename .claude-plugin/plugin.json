@@ -1,0 +1,13 @@
+{
+  "name": "simplepractice",
+  "version": "0.0.0",
+  "description": "SimplePractice Client Portal — appointments, billing, documents, and announcements",
+  "author": {
+    "name": "Chris Chall",
+    "url": "https://github.com/chrischall"
+  },
+  "homepage": "https://github.com/chrischall/simplepractice-mcp",
+  "license": "MIT",
+  "mcpServers": "./.mcp.json",
+  "skills": "./skills/"
+}

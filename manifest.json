@@ -1,0 +1,120 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/dxt/main/dist/mcpb-manifest.schema.json",
+  "manifest_version": "0.3",
+  "name": "simplepractice-mcp",
+  "display_name": "SimplePractice Client Portal",
+  "version": "0.0.0",
+  "description": "SimplePractice Client Portal for Claude \u2014 appointments, billing, documents, and announcements",
+  "author": {
+    "name": "Chris Chall",
+    "email": "chris.c.hall@gmail.com",
+    "url": "https://github.com/chrischall"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chrischall/simplepractice-mcp"
+  },
+  "homepage": "https://github.com/chrischall/simplepractice-mcp",
+  "support": "https://github.com/chrischall/simplepractice-mcp/issues",
+  "license": "MIT",
+  "keywords": [
+    "simplepractice",
+    "client-portal",
+    "therapy",
+    "appointments",
+    "billing",
+    "superbill",
+    "documents"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/bundle.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/dist/bundle.js"
+      ],
+      "env": {
+        "SIMPLEPRACTICE_PRACTICE": "${user_config.simplepractice_practice}",
+        "SIMPLEPRACTICE_SESSION_FILE": "${user_config.simplepractice_session_file}"
+      }
+    }
+  },
+  "user_config": {
+    "simplepractice_practice": {
+      "type": "string",
+      "title": "Client Portal address",
+      "description": "Your practice's Client Portal address \u2014 either the slug (\"achievebalancetherapy\") or the full host (\"achievebalancetherapy.clientsecure.me\"). It is the host in the portal link your provider emailed you.",
+      "required": true
+    },
+    "simplepractice_session_file": {
+      "type": "string",
+      "title": "Session file",
+      "description": "Where to keep the signed-in session (default ~/.simplepractice-mcp/session.json, written 0600).",
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "simplepractice_session_status",
+      "description": "Report whether a Client Portal session is held, and for which practice."
+    },
+    {
+      "name": "simplepractice_request_sign_in_link",
+      "description": "Ask SimplePractice to email a Client Portal sign-in link. Confirm-gated; rate-limited upstream."
+    },
+    {
+      "name": "simplepractice_verify_sign_in_token",
+      "description": "Exchange an emailed sign-in link (or its token) for a Client Portal session."
+    },
+    {
+      "name": "simplepractice_verify_sign_in_pin",
+      "description": "Exchange a 6-digit Client Portal sign-in PIN for a session."
+    },
+    {
+      "name": "simplepractice_sign_out",
+      "description": "Discard the stored Client Portal session."
+    },
+    {
+      "name": "simplepractice_get_account",
+      "description": "The practice, the current client, and every client this login can see."
+    },
+    {
+      "name": "simplepractice_list_appointments",
+      "description": "Scheduled or requested appointments, with clinician and location."
+    },
+    {
+      "name": "simplepractice_list_billing_items",
+      "description": "Invoices, statements, superbills, receipts, or account history."
+    },
+    {
+      "name": "simplepractice_get_billing_overview",
+      "description": "Balance due and per-category counts."
+    },
+    {
+      "name": "simplepractice_list_payment_methods",
+      "description": "Payment methods saved to the portal \u2014 brand, last four, expiry."
+    },
+    {
+      "name": "simplepractice_list_document_requests",
+      "description": "Paperwork the practice has sent, with an outstanding-only filter."
+    },
+    {
+      "name": "simplepractice_get_document_request",
+      "description": "One document request in full, with its body or questions and answers."
+    },
+    {
+      "name": "simplepractice_list_documents",
+      "description": "Files the practice has shared through the portal."
+    },
+    {
+      "name": "simplepractice_list_announcements",
+      "description": "Announcements the practice has posted, with unread counts."
+    }
+  ],
+  "compatibility": {
+    "runtimes": {
+      "node": ">=22.5"
+    }
+  }
+}

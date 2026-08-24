@@ -1,0 +1,34 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.chrischall/simplepractice-mcp",
+  "description": "SimplePractice Client Portal — appointments, billing, documents, announcements",
+  "repository": {
+    "url": "https://github.com/chrischall/simplepractice-mcp",
+    "source": "github"
+  },
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "simplepractice-mcp",
+      "version": "0.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SIMPLEPRACTICE_PRACTICE",
+          "description": "Your practice's Client Portal address — the slug (\"achievebalancetherapy\") or the full host (\"achievebalancetherapy.clientsecure.me\").",
+          "isRequired": true,
+          "format": "string"
+        },
+        {
+          "name": "SIMPLEPRACTICE_SESSION_FILE",
+          "description": "Where to persist the signed-in session (default ~/.simplepractice-mcp/session.json, written 0600).",
+          "isRequired": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

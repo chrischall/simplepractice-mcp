@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "simplepractice": {
+      "command": "npx",
+      "args": ["-y", "simplepractice-mcp"],
+      "env": {
+        "SIMPLEPRACTICE_PRACTICE": "${SIMPLEPRACTICE_PRACTICE}"
+      }
+    }
+  }
+}
