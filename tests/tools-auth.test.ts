@@ -99,7 +99,7 @@ describe('simplepractice_verify_sign_in_token', () => {
     ]);
     const out = parseToolResult<any>(
       await harness.callTool('simplepractice_verify_sign_in_token', {
-        link: 'https://achievebalancetherapy.clientsecure.me/sign-in/token/verify#tok',
+        link: 'https://achievebalancetherapy.clientsecure.me/sign-in/token#tok',
       })
     );
     expect(out).toEqual({ status: 'verified', signedIn: true });

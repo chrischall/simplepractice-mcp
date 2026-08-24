@@ -15,7 +15,7 @@ describe('extracting the token from what a user pastes', () => {
   it('takes the fragment out of a whole sign-in link', () => {
     // The token is the URL FRAGMENT — a browser never sends it to the server,
     // so the link text is the only place it can come from.
-    expect(_extractToken(`https://${HOST}/sign-in/token/verify#abc123`)).toBe('abc123');
+    expect(_extractToken(`https://${HOST}/sign-in/token#abc123`)).toBe('abc123');
   });
 
   it('accepts a bare token', () => {
@@ -27,13 +27,13 @@ describe('extracting the token from what a user pastes', () => {
   });
 
   it('rejects a link with no fragment, rather than posting the URL as a token', () => {
-    expect(() => _extractToken(`https://${HOST}/sign-in/token/verify`)).toThrow(
+    expect(() => _extractToken(`https://${HOST}/sign-in/token`)).toThrow(
       /no token in it/
     );
   });
 
   it('rejects a path-shaped string that is plainly not a token', () => {
-    expect(() => _extractToken('/sign-in/token/verify')).toThrow(
+    expect(() => _extractToken('/sign-in/token')).toThrow(
       /does not look like a sign-in token/
     );
   });
@@ -85,7 +85,7 @@ describe('verifySignInToken', () => {
     const { client, calls } = makeClient([
       verified(['simplepractice-session=SECRET; Path=/; HttpOnly; Secure']),
     ]);
-    const result = await verifySignInToken(client, `https://${HOST}/sign-in/token/verify#tok`);
+    const result = await verifySignInToken(client, `https://${HOST}/sign-in/token#tok`);
 
     expect(calls[0].url).toBe(`https://${HOST}/client-portal-api/sessions/token`);
     expect(JSON.parse(String(calls[0].init.body))).toEqual({

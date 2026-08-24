@@ -51,18 +51,30 @@ Always branch on `content-type`, never on status.
 | `POST /sessions/token` | `{data:{type:'sessions',attributes:{type:'token',token}}}` | sets `simplepractice-session`; `data.meta.status` ∈ `verified`/`expired`/`merged` |
 | `POST /sessions/pin` | `{data:{type:'sessions',attributes:{type:'pin',email,pin}}}` | same; PIN is `^\d{6}$` |
 
-The emailed link is `…/sign-in/token/verify#<TOKEN>` — the token is the **URL
-fragment**, which a browser never transmits, so it can only come from the link
-text. Tokens are single-use, 24 hours.
+The emailed link is **`https://<practice>.clientsecure.me/sign-in/token#<TOKEN>`**
+— note `/sign-in/token`, *not* the `sign-in/token/verify` the Ember route tree
+suggests. SimplePractice also sends a mobile-app variant pointing at the bare
+apex under the API namespace, `https://clientsecure.me/client-portal-api/sign-in/token#<TOKEN>`.
+Both carry the token the same way, so take the fragment and ignore the path.
+
+The token is the **URL fragment**, which a browser never transmits, so it can
+only come from the link text. Observed length 303–317 characters.
+
+Tokens are single-use — confirmed by replay, which answers
+`401 "Authorization has already been used or expired"`. Note that this is a
+**401 on a sign-in endpoint**, where the caller has no session yet, so it must
+not be reported as "your session expired".
 
 `429` carries two distinct titles, `Email request limit reached` and
 `IP request limit reached`. Never retry: this is the only auth path the portal
 has. No captcha guards sign-in (reCAPTCHA appears only on the prospective-client,
 waitlist and contact forms), which is what makes headless auth possible.
 
-**Not confirmed live:** the `/sessions/token` exchange itself. `POST
-/sign-in-tokens` was exercised against a real account (202); the exchange shape
-is transcribed from `routes/sign-in/token/verify.js` + `services/sign-in.js`.
+**Confirmed live, end to end:** `POST /sign-in-tokens` (202) → the emailed
+link → `POST /sessions/token` returning `data.meta.status: "verified"` and a
+`Set-Cookie: simplepractice-session` (~697 characters) → an authenticated read
+with that freshly minted session. Replaying the same token then failed as
+above, confirming single use.
 
 ## Endpoints confirmed live
 
