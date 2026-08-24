@@ -48,10 +48,15 @@ The Client Portal has **no password**. SimplePractice emails a one-time link
 3. `simplepractice_verify_sign_in_token { link }` — pass the whole link; the
    token is its `#` fragment and the tool extracts it.
 
-Links are single-use and last 24 hours. The request endpoint is rate-limited
-per address **and** per IP, which is why sending is confirm-gated — a retry
-loop locks you out of the only way in. There is no refresh token: when the
-session lapses, you sign in again.
+Links are single-use — replaying one answers
+`401 "Authorization has already been used or expired"` — and last 24 hours. The
+request endpoint is rate-limited per address **and** per IP, which is why
+sending is confirm-gated: a retry loop locks you out of the only way in. There
+is no refresh token; when the session lapses, you sign in again.
+
+The whole chain is verified end to end against a live portal — request, the
+emailed link, the exchange returning `verified` plus a session cookie, and an
+authenticated read with that new session.
 
 Because that flow needs nothing but HTTP and your inbox, this server has no
 browser dependency and can run anywhere.

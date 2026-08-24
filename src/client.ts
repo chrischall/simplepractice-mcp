@@ -170,7 +170,7 @@ export class SimplePracticeClient {
       document = null;
     }
 
-    if (!response.ok) this.throwForStatus(response.status, document);
+    if (!response.ok) this.throwForStatus(response.status, document, path);
     if (document === null) {
       // The portal's SPA catch-all answers 200 text/html for ANY path the API
       // does not define, so this is as often a wrong path as a dead session —
@@ -205,11 +205,22 @@ export class SimplePracticeClient {
     return flattenDocument(document);
   }
 
-  private throwForStatus(status: number, document: JsonApiDocument | null): never {
+  private throwForStatus(
+    status: number,
+    document: JsonApiDocument | null,
+    path: string
+  ): never {
     const message = formatJsonApiErrors(document, status);
+    // A 401 on the sign-in endpoints means the TOKEN was bad — most often
+    // already used, since they are single-use. Telling the caller their
+    // session expired there is simply the wrong diagnosis: they have no
+    // session yet, which is why they are signing in.
+    const isSignIn = path.startsWith('/sessions/') || path.startsWith('/sign-in-tokens');
     if (status === 401 || status === 403) {
       throw new McpToolError(message, {
-        hint: 'The portal session has expired — there is no refresh token, so sign in again with simplepractice_request_sign_in_link.',
+        hint: isSignIn
+          ? 'Sign-in links and PINs are single-use and last 24 hours. Request a fresh one with simplepractice_request_sign_in_link.'
+          : 'The portal session has expired — there is no refresh token, so sign in again with simplepractice_request_sign_in_link.',
       });
     }
     if (status === 429) {

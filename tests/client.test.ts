@@ -190,3 +190,26 @@ describe('session persistence', () => {
     expect(client.clearSession()).toBe(false);
   });
 });
+
+describe('401 diagnosis depends on which endpoint failed', () => {
+  it('blames a stale session on a data endpoint', async () => {
+    const { client } = makeSignedInClient([{ status: 401, body: { errors: [{ title: 'nope' }] } }]);
+    const err = await client.list('/appointments').catch((e: McpToolError) => e);
+    expect(err.hint).toMatch(/portal session has expired/);
+  });
+
+  it('blames a spent link on the sign-in endpoints, where there is no session yet', async () => {
+    // Verified live: replaying a used token answers 401 "Authorization has
+    // already been used or expired". Saying "your session expired" there is
+    // the wrong diagnosis — the caller is signing in precisely because they
+    // have no session.
+    const { client } = makeClient([
+      { status: 401, body: { errors: [{ title: 'Authorization has already been used or expired' }] } },
+    ]);
+    const err = await client
+      .request('/sessions/token', { method: 'POST', anonymous: true, body: {} })
+      .catch((e: McpToolError) => e);
+    expect(err.hint).toMatch(/single-use/);
+    expect(err.hint).not.toMatch(/portal session has expired/);
+  });
+})

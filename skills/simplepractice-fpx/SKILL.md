@@ -82,13 +82,21 @@ hammering it locks you out of the only auth path there is. Wait it out.
 **b. Take the token out of the emailed link.** The link looks like
 
 ```
-https://<practice>.clientsecure.me/sign-in/token/verify#<TOKEN>
+https://<practice>.clientsecure.me/sign-in/token#<TOKEN>
 ```
 
-The token is the **URL fragment**, after the `#`. Because it is a fragment it
-is never sent to the server by a browser navigation — the app reads it in JS
-and posts it. So you must copy it yourself; following the link with `curl`
-does nothing.
+SimplePractice also mails a mobile-app variant on the bare apex,
+`https://clientsecure.me/client-portal-api/sign-in/token#<TOKEN>`. Either
+works — the path is irrelevant, only the fragment matters.
+
+The token is the **URL fragment**, after the `#` (about 300 characters).
+Because it is a fragment it is never sent to the server by a browser
+navigation — the app reads it in JS and posts it. So you must copy it
+yourself; following the link with `curl` does nothing.
+
+If you are pulling the link out of a raw message rather than clicking it, note
+the mail is **quoted-printable**: the URL is wrapped across lines with trailing
+`=`, and a naive regex will hand you a silently truncated token. Decode first.
 
 **c. Trade it for a session cookie.**
 

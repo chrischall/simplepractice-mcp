@@ -60,10 +60,20 @@ sp -X POST "$SP_API/sign-in-tokens" \
 
 ### 1.2 Exchange the token — `POST /sessions/token`
 
-The emailed link is `https://<practice>.clientsecure.me/sign-in/token/verify#<TOKEN>`.
-The token is the **fragment**. A browser never sends a fragment to the server;
-the Ember app reads `location.hash` and posts it. Fetching the link with `curl`
-accomplishes nothing — copy the part after `#`.
+The emailed link is
+**`https://<practice>.clientsecure.me/sign-in/token#<TOKEN>`** — `/sign-in/token`,
+*not* the `sign-in/token/verify` the app's route tree implies. A second variant,
+sent for the mobile app, points at the bare apex under the API namespace:
+`https://clientsecure.me/client-portal-api/sign-in/token#<TOKEN>`. Either works —
+take the fragment, ignore the path.
+
+The token is the **fragment** (303–317 characters observed). A browser never
+sends a fragment to the server; the app reads `location.hash` and posts it.
+Fetching the link with `curl` accomplishes nothing — copy the part after `#`.
+
+Both emails are quoted-printable, so the URL is **wrapped across lines with
+trailing `=`**. Pulling it out of a raw message with a naive regex silently
+truncates the token — decode the quoted-printable first.
 
 ```sh
 sp -X POST "$SP_API/sessions/token" \
@@ -80,13 +90,10 @@ Success sets the `simplepractice-session` cookie (Rails/Devise) and returns
 | `expired` | older than 24h — request a new link |
 | `merged` | the account was merged into another; sign in from the new portal |
 
-Tokens are single-use; replaying one gives `401`/`422`.
-
-> Not exercised live during this build: the exchange call itself. §1.1 was
-> confirmed against a real account (`202`), and the shape above comes from
-> `routes/sign-in/token/verify.js` + `services/sign-in.js`, but reading the
-> emailed token was out of scope for the agent that wrote this. Treat
-> `meta.status` handling as source-derived until you've run it once.
+Tokens are single-use — confirmed by replay, which answers
+`401 {"title":"Authorization has already been used or expired"}`. That is a 401
+on a sign-in endpoint, where you have no session yet; it means *get a new
+link*, not *your session expired*.
 
 ### 1.3 PIN variant — `POST /sessions/pin`
 
