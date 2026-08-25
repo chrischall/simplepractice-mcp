@@ -1,0 +1,70 @@
+# How this MCP wants to be hosted on mcp-host (see mcp-host/docs/HOSTING-MANIFEST.md).
+#
+# The FILENAME is load-bearing: mcp-host matches it exactly, against
+# MINT_MANIFEST_FILE in packages/core — `mint.yaml`, with the earlier
+# `mcp-host.yaml` still read as a deprecated fallback. A name the reader does
+# not expect is not an error; it is simply never found, and the registration
+# preview falls back to inference with nothing to notice. If this file ever
+# looks ignored, check that constant first rather than this comment.
+#
+# This file is a PROPOSAL, never an application. It is read at the resolved pin
+# and rendered for a human; nothing here changes a registration until an owner
+# saves it through the ordinary write path. It is NOT covered by the tarball
+# integrity check, so it carries no secrets and nothing that decides what runs.
+version: 1
+
+name: SimplePractice
+slug: simplepractice
+summary: >-
+  Read a SimplePractice Client Portal as one of a practice's clients —
+  appointments, billing, documents to sign, and announcements.
+
+env:
+  - name: SIMPLEPRACTICE_PRACTICE
+    secret: false
+    required: true
+    # No default: this names one specific practice's portal, so any value here
+    # would be wrong for everyone but its author.
+    help: >-
+      Your practice's Client Portal address — either the slug
+      ("achievebalancetherapy") or the full host
+      ("achievebalancetherapy.clientsecure.me"). It is the host in the portal
+      link your provider emailed you.
+
+  - name: SIMPLEPRACTICE_SESSION_FILE
+    secret: false
+    required: false
+    # No default: the built-in one already resolves under $HOME, which the
+    # data dir below persists. Naming a path here would only risk pointing the
+    # session outside it.
+    help: >-
+      Where the signed-in portal session is kept (written 0600). Defaults to
+      $HOME/.simplepractice-mcp/session.json; leave unset unless you need it
+      somewhere specific.
+
+state:
+  dataDir: true
+  reason: >-
+    The portal session cookie is the only credential this server has, and
+    SimplePractice issues no refresh token. It is persisted under
+    $HOME/.simplepractice-mcp/session.json. Without a data dir every cold start
+    loses it, and recovering means a human requesting a fresh magic-link email
+    and pasting the link back in — so on a scale-to-zero machine the connector
+    would demand an inbox round-trip after nearly every idle period.
+
+identity:
+  # True because this server authenticates as its CALLER, not as the
+  # registration: there is no credential in the environment at all, and each
+  # caller signs in through the tools with a magic link mailed to their own
+  # address. One shared child would leave the first caller's portal session in
+  # place for every later caller to read — someone else's medical record. The
+  # uid and state dir per caller are worth that.
+  perUserChild: true
+
+egress:
+  # Every request goes to the practice's own portal host; the client builds
+  # exactly one URL template and there is no analytics, no CDN and no browser
+  # bridge. The bare apex is never called — only the practice subdomain.
+  # Honoured on the isolated tier, a proposal elsewhere.
+  allow:
+    - "*.clientsecure.me"

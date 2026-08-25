@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "mcpName": "io.github.chrischall/simplepractice-mcp",
-  "description": "SimplePractice Client Portal MCP server for Claude — developed and maintained by AI (Claude Code)",
+  "description": "SimplePractice Client Portal MCP server for Claude \u2014 developed and maintained by AI (Claude Code)",
   "author": "Claude Code (AI) <https://www.anthropic.com/claude>",
   "repository": {
     "type": "git",
@@ -21,7 +21,8 @@
     ".claude-plugin",
     "skills",
     ".mcp.json",
-    "server.json"
+    "server.json",
+    "mint.yaml"
   ],
   "scripts": {
     "build": "tsc && npm run bundle",
@@ -43,6 +44,7 @@
     "@vitest/coverage-v8": "^4.1.7",
     "esbuild": "^0.28.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.7",
+    "yaml": "^2.9.0"
   }
 }

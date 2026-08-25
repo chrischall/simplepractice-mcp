@@ -34,6 +34,14 @@ describe('package.json', () => {
     expect(pkg.files).toContain('.claude-plugin');
   });
 
+  it('ships mint.yaml, which mcp-host reads out of the published tarball', () => {
+    // The hosting manifest is fetched from
+    // cdn.jsdelivr.net/npm/<pkg>@<version>/mint.yaml — i.e. the npm tarball.
+    // Left out of `files` it is a 404, and a 404 is not an error there: the
+    // preview simply falls back to inference with nothing to notice.
+    expect(pkg.files).toContain('mint.yaml');
+  });
+
   it('keeps the mcpb runtime floor on an LTS node, not the CI node', () => {
     expect(manifest.compatibility.runtimes.node).toBe('>=22.5');
   });
