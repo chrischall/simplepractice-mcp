@@ -1,9 +1,9 @@
 {
   "name": "simplepractice-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "mcpName": "io.github.chrischall/simplepractice-mcp",
-  "description": "SimplePractice Client Portal MCP server for Claude \u2014 developed and maintained by AI (Claude Code)",
+  "description": "SimplePractice Client Portal MCP server for Claude — developed and maintained by AI (Claude Code)",
   "author": "Claude Code (AI) <https://www.anthropic.com/claude>",
   "repository": {
     "type": "git",
