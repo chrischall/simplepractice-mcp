@@ -56,6 +56,10 @@ The emailed link is **`https://<practice>.clientsecure.me/sign-in/token#<TOKEN>`
 suggests. SimplePractice also sends a mobile-app variant pointing at the bare
 apex under the API namespace, `https://clientsecure.me/client-portal-api/sign-in/token#<TOKEN>`.
 Both carry the token the same way, so take the fragment and ignore the path.
+The **host is worth keeping too**: on the first variant it names the practice,
+which is why this server derives the portal from the link rather than making
+the user configure it. The apex variant names none, so it needs a practice
+already known.
 
 The token is the **URL fragment**, which a browser never transmits, so it can
 only come from the link text. Observed length 303–317 characters.

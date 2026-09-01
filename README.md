@@ -28,15 +28,13 @@ Everything is read-only. Cancelling, signing, and paying happen in the portal.
 
 ```sh
 npm install -g simplepractice-mcp
-export SIMPLEPRACTICE_PRACTICE=achievebalancetherapy   # or the full host
 ```
 
-`SIMPLEPRACTICE_PRACTICE` is the practice's portal address — the slug or the
-whole `<practice>.clientsecure.me` host from the link your provider emailed.
+There is nothing to configure. The practice comes from your sign-in link.
 
 | Variable | |
 |---|---|
-| `SIMPLEPRACTICE_PRACTICE` | **required** — portal slug or host |
+| `SIMPLEPRACTICE_PRACTICE` | optional — pins the server to one practice (slug or host) |
 | `SIMPLEPRACTICE_SESSION_FILE` | optional — session path (default `~/.simplepractice-mcp/session.json`, written `0600`) |
 
 ## Signing in
@@ -44,10 +42,31 @@ whole `<practice>.clientsecure.me` host from the link your provider emailed.
 The Client Portal has **no password**. SimplePractice emails a one-time link
 (or a 6-digit PIN); you trade it for a session cookie:
 
-1. `simplepractice_request_sign_in_link { email, confirm: true }`
-2. Open the email, copy the link.
-3. `simplepractice_verify_sign_in_token { link }` — pass the whole link; the
-   token is its `#` fragment and the tool extracts it.
+1. Open the email your provider sent, copy the link.
+2. `simplepractice_verify_sign_in_token { link }` — pass the **whole** link.
+
+The link is `https://<practice>.clientsecure.me/sign-in/token#<TOKEN>`, so one
+paste carries both halves of what the server needs: the token is the `#`
+fragment, and the host names the practice. Nothing is hardcoded, and the
+stored session remembers the practice for every later run —
+`simplepractice_session_status` reports which practice is in play and whether
+it came from a link, the environment variable, or the saved session.
+
+To have a fresh link sent rather than using one you already have, name the
+practice once:
+
+```
+simplepractice_request_sign_in_link { email, practice: "achievebalancetherapy", confirm: true }
+```
+
+`practice` can be omitted whenever the server already knows the practice —
+from an earlier sign-in, or from `SIMPLEPRACTICE_PRACTICE`.
+
+Two sign-in links name no practice, and fall back to whichever one is already
+known: the mobile-app variant SimplePractice sends
+(`https://clientsecure.me/client-portal-api/sign-in/token#<TOKEN>`, pointed at
+the bare apex), and a bare token pasted without its link. A link on any host
+outside `*.clientsecure.me` is never adopted — the token is not sent there.
 
 Links are single-use — replaying one answers
 `401 "Authorization has already been used or expired"` — and last 24 hours. The
@@ -88,7 +107,7 @@ records the endpoints and the traps, all confirmed against a live portal:
 ```sh
 npm install
 npm run build
-npm test              # 151 tests
+npm test              # 211 tests
 npm run test:coverage # 100% enforced
 npm run typecheck     # vitest does not run tsc — this does
 ```

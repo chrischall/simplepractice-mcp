@@ -43,9 +43,9 @@
   "user_config": {
     "simplepractice_practice": {
       "type": "string",
-      "title": "Client Portal address",
-      "description": "Your practice's Client Portal address — either the slug (\"achievebalancetherapy\") or the full host (\"achievebalancetherapy.clientsecure.me\"). It is the host in the portal link your provider emailed you.",
-      "required": true
+      "title": "Client Portal address (optional)",
+      "description": "Optional — pins this server to one practice: the slug (\"achievebalancetherapy\") or the full host (\"achievebalancetherapy.clientsecure.me\"). Leave it blank and the practice is read from the sign-in link your provider emailed you.",
+      "required": false
     },
     "simplepractice_session_file": {
       "type": "string",
@@ -57,7 +57,7 @@
   "tools": [
     {
       "name": "simplepractice_session_status",
-      "description": "Report whether a Client Portal session is held, and for which practice."
+      "description": "Report whether a Client Portal session is held, for which practice, and how that practice was determined."
     },
     {
       "name": "simplepractice_request_sign_in_link",
@@ -65,7 +65,7 @@
     },
     {
       "name": "simplepractice_verify_sign_in_token",
-      "description": "Exchange an emailed sign-in link (or its token) for a Client Portal session."
+      "description": "Exchange an emailed sign-in link (or its token) for a Client Portal session. The whole link also names the practice."
     },
     {
       "name": "simplepractice_verify_sign_in_pin",

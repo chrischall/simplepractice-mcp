@@ -5,11 +5,16 @@ import { McpToolError } from '@chrischall/mcp-utils';
 import type { SimplePracticeClient } from '../src/client.js';
 import { registerHealthcheckTools, CLIENT_ERROR_TEXT } from '../src/tools/health.js';
 
-function setup(opts: { session?: unknown; host?: string; probe?: () => Promise<unknown> } = {}) {
+function setup(
+  opts: { session?: unknown; host?: string | null; probe?: () => Promise<unknown> } = {}
+) {
   const list = vi.fn(opts.probe ?? (async () => ({ records: [{ id: 'c1' }] })));
   const client = {
     list,
-    portalHost: () => opts.host ?? 'practice.clientsecure.me',
+    // `knownPortalHost`, matching what health.ts calls: the throwing
+    // `portalHost` has no place in a healthcheck, which must report a missing
+    // practice as data rather than failing to answer at all.
+    knownPortalHost: () => (opts.host === undefined ? 'practice.clientsecure.me' : opts.host),
     getSession: () => (opts.session === undefined ? { createdAt: '2026-08-01T00:00:00Z' } : opts.session),
   } as unknown as SimplePracticeClient;
   const server = new McpServer({ name: 'test', version: '0.0.0' });
@@ -81,14 +86,25 @@ describe('simplepractice_healthcheck', () => {
     expect(JSON.stringify(out)).not.toContain('SUPER-SECRET');
   });
 
-  it('flags an unconfigured practice distinctly', async () => {
+  it('flags an unknown practice distinctly', async () => {
     const out = await setup({
       // The real text from client.ts requireConfig(), which portalHost() calls.
       probe: async () => {
-        throw new McpToolError('SIMPLEPRACTICE_PRACTICE is not set, or is not a valid Client Portal address.');
+        throw new McpToolError('I do not know which practice portal to talk to yet.');
       },
     }).call();
     expect(out.error.kind).toBe('no_practice_host');
+    // The remedy is the emailed link now, not the environment variable.
+    expect(out.hint).toMatch(/simplepractice_verify_sign_in_token/);
+  });
+
+  it('reports an unknown practice as data rather than failing to answer', async () => {
+    // Knowing no practice is the ordinary first-run state now. A healthcheck
+    // that throws there fails at the one job it has: saying which hop broke.
+    const out = await setup({ host: null, session: null }).call();
+    expect(out.ok).toBe(false);
+    expect(out.credential.detail.practice_host).toBeNull();
+    expect(out.error.kind).toBe('no_credential');
   });
 
   it('reports a 429 as rate_limited and tells the caller not to retry', async () => {

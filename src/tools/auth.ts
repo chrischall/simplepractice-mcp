@@ -9,17 +9,25 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     'simplepractice_session_status',
     {
       description:
-        'Report whether this server holds a Client Portal session, and for which practice. Reads local state only — makes no network call.',
+        'Report whether this server holds a Client Portal session, for which practice, and how that practice was determined (from a sign-in link, from SIMPLEPRACTICE_PRACTICE, or remembered from the stored session). Reads local state only — makes no network call.',
       annotations: toolAnnotations({ readOnly: true }),
       inputSchema: {},
     },
     async () => {
-      const host = client.portalHost();
+      const host = client.knownPortalHost();
       const session = client.getSession();
       return textResult({
         practiceHost: host,
+        // Not knowing the practice yet is a state to report, not an error:
+        // it is what a first run looks like before anyone has pasted a link.
+        practiceSource: client.practiceSource(),
         signedIn: session !== null,
         signedInAt: session?.createdAt ?? null,
+        ...(host
+          ? {}
+          : {
+              next: 'Paste the sign-in link your provider emailed into simplepractice_verify_sign_in_token — its address names the practice. Or set SIMPLEPRACTICE_PRACTICE to pin this server to one.',
+            }),
       });
     }
   );
@@ -32,10 +40,20 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       annotations: toolAnnotations({ readOnly: false, idempotent: false }),
       inputSchema: {
         email: z.string().email().describe('The email address the Client Portal is registered to.'),
+        practice: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            'The practice whose portal to sign in to — the slug ("achievebalancetherapy"), the host, or the portal URL. Only needed when this server does not know the practice yet; signing in with an emailed link teaches it, and it then remembers.'
+          ),
         confirm: schemaConfirm,
       },
     },
-    async ({ email, confirm }) => {
+    async ({ email, practice, confirm }) => {
+      // Adopted before the dry run too, so the preview names the practice the
+      // email would actually come from.
+      if (practice) client.adoptPracticeHost(practice);
       if (!confirm) {
         return textResult({
           dryRun: true,
@@ -49,6 +67,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       return textResult({
         sent: true,
         to: email,
+        practiceHost: client.portalHost(),
         expiresIn,
         next: 'Open the email, copy the sign-in link (or just the part after the "#"), and pass it to simplepractice_verify_sign_in_token.',
         note: 'This response is the same whether or not the address has an account.',
@@ -60,7 +79,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     'simplepractice_verify_sign_in_token',
     {
       description:
-        'Exchange an emailed sign-in link (or the token in it) for a Client Portal session. Accepts the whole link or just the part after the "#". Tokens are single-use and last 24 hours.',
+        'Exchange an emailed sign-in link (or the token in it) for a Client Portal session. Accepts the whole link or just the part after the "#". Prefer passing the WHOLE link: its address names the practice, so no practice has to be configured, and this server remembers it afterwards. Tokens are single-use and last 24 hours.',
       annotations: toolAnnotations({ readOnly: false, idempotent: false }),
       inputSchema: {
         link: z

@@ -22,14 +22,18 @@ summary: >-
 env:
   - name: SIMPLEPRACTICE_PRACTICE
     secret: false
-    required: true
+    # Optional: the sign-in link a provider emails is
+    # https://<practice>.clientsecure.me/sign-in/token#<TOKEN>, so pasting it
+    # into simplepractice_verify_sign_in_token tells the server the practice —
+    # and the stored session remembers it. This only pins the server to one.
+    required: false
     # No default: this names one specific practice's portal, so any value here
     # would be wrong for everyone but its author.
     help: >-
-      Your practice's Client Portal address — either the slug
-      ("achievebalancetherapy") or the full host
-      ("achievebalancetherapy.clientsecure.me"). It is the host in the portal
-      link your provider emailed you.
+      Optional. Pins this server to one practice's Client Portal — either the
+      slug ("achievebalancetherapy") or the full host
+      ("achievebalancetherapy.clientsecure.me"). Leave it unset and the
+      practice is taken from the sign-in link your provider emailed you.
 
   - name: SIMPLEPRACTICE_SESSION_FILE
     secret: false

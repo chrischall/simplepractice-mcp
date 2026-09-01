@@ -1,4 +1,5 @@
 import { CookieJar, McpToolError } from '@chrischall/mcp-utils';
+import { practiceHostFromLink } from './config.js';
 import type { SimplePracticeClient } from './client.js';
 
 /** The Rails/Devise session cookie the portal authenticates with. */
@@ -7,6 +8,9 @@ export const SESSION_COOKIE = 'simplepractice-session';
 export interface VerifyResult {
   status: string;
   signedIn: boolean;
+  /** Which practice the session was established with — worth echoing back
+   * when the link, not the configuration, is what determined it. */
+  practiceHost: string;
 }
 
 /**
@@ -88,15 +92,41 @@ async function establishSession(
     });
   }
 
-  client.saveSession(`${SESSION_COOKIE}=${cookie}`);
-  return { status, signedIn: true };
+  const session = client.saveSession(`${SESSION_COOKIE}=${cookie}`);
+  return { status, signedIn: true, practiceHost: session.host };
 }
 
-export function verifySignInToken(
+/**
+ * Trade an emailed sign-in link for a session — and take the practice from the
+ * link while we are at it.
+ *
+ * The link is `https://<practice>.clientsecure.me/sign-in/token#<TOKEN>`, so
+ * the same paste that carries the token also says which portal to send it to.
+ * That is the only ordering that can work when the link and the configuration
+ * disagree: the token was minted for the practice in the link, and posting it
+ * anywhere else is a 401.
+ *
+ * A link that names no practice — the mobile variant at the bare apex, or a
+ * bare token — falls back to whatever practice is already known.
+ */
+// `async` so that the pre-flight rejections below reach a caller the same way
+// the network ones do, rather than throwing synchronously out of a function
+// that otherwise returns a promise.
+export async function verifySignInToken(
   client: SimplePracticeClient,
   linkOrToken: string
 ): Promise<VerifyResult> {
-  return establishSession(client, { type: 'token', token: extractToken(linkOrToken) });
+  const attributes = { type: 'token', token: extractToken(linkOrToken) };
+  const fromLink = practiceHostFromLink(linkOrToken);
+  // Scoped, so a link that fails to verify does not leave the process pointed
+  // at its practice — links are single-use, so failing is the ordinary case.
+  if (fromLink) {
+    return client.withPracticeHost(fromLink, () => establishSession(client, attributes));
+  }
+  // No practice in the link, so it has to be known already: resolve before
+  // posting, or a single-use token is spent against a guess.
+  client.portalHost();
+  return establishSession(client, attributes);
 }
 
 export function verifySignInPin(

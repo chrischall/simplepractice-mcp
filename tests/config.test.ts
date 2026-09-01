@@ -1,5 +1,10 @@
 import { describe, expect, it, afterEach } from 'vitest';
-import { resolvePortalHost, readPortalHost, sessionFilePath } from '../src/config.js';
+import {
+  resolvePortalHost,
+  practiceHostFromLink,
+  readPortalHost,
+  sessionFilePath,
+} from '../src/config.js';
 
 describe('resolvePortalHost', () => {
   it('expands a bare practice slug to the portal host', () => {
@@ -48,6 +53,58 @@ describe('resolvePortalHost', () => {
   it('refuses a slug with characters a practice label cannot contain', () => {
     expect(resolvePortalHost('bad_slug')).toBeNull();
     expect(resolvePortalHost('-leading')).toBeNull();
+  });
+});
+
+describe('practiceHostFromLink', () => {
+  it('reads the practice out of an emailed sign-in link', () => {
+    // The whole point: the link the provider emails already names the
+    // practice, so nobody should have to supply it as configuration.
+    expect(
+      practiceHostFromLink('https://achievebalancetherapy.clientsecure.me/sign-in/token#abc123')
+    ).toBe('achievebalancetherapy.clientsecure.me');
+  });
+
+  it('tolerates the case and whitespace a paste brings with it', () => {
+    expect(
+      practiceHostFromLink('  https://AchieveBalanceTherapy.clientsecure.me/sign-in/token#abc  ')
+    ).toBe('achievebalancetherapy.clientsecure.me');
+  });
+
+  it('reads it from a link pasted without its scheme', () => {
+    expect(practiceHostFromLink('achievebalancetherapy.clientsecure.me/sign-in/token#abc')).toBe(
+      'achievebalancetherapy.clientsecure.me'
+    );
+  });
+
+  it('names no practice for the mobile variant, which points at the bare apex', () => {
+    // SimplePractice also emails
+    // https://clientsecure.me/client-portal-api/sign-in/token#<TOKEN> — same
+    // token, no practice in it.
+    expect(
+      practiceHostFromLink('https://clientsecure.me/client-portal-api/sign-in/token#abc123')
+    ).toBeNull();
+  });
+
+  it('names no practice for a bare token', () => {
+    // Load-bearing: a token carries no fragment, and slug-expanding one would
+    // aim the sign-in POST at `<token>.clientsecure.me`.
+    expect(practiceHostFromLink('abc123')).toBeNull();
+    expect(practiceHostFromLink('a.b.c-looks-like-a-jwt')).toBeNull();
+  });
+
+  it('never slug-expands the text in front of a fragment', () => {
+    expect(practiceHostFromLink('achievebalancetherapy#abc123')).toBeNull();
+  });
+
+  it('names no practice for a link outside clientsecure.me', () => {
+    // A phishing link must not be able to redirect the token; the caller falls
+    // back to the configured or remembered practice instead.
+    expect(practiceHostFromLink('https://evil.example.com/sign-in/token#abc123')).toBeNull();
+  });
+
+  it('is null for nothing at all', () => {
+    expect(practiceHostFromLink(undefined)).toBeNull();
   });
 });
 

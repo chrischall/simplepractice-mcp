@@ -63,9 +63,12 @@ describe('mint.yaml', () => {
     expect(declared).toEqual(envVarsUsedInSource());
   });
 
-  it('marks the practice address required and the session path optional', () => {
+  it('marks every environment variable optional, because none is needed', () => {
+    // The practice comes out of the emailed sign-in link, so an owner can
+    // install this with no configuration at all. Marking it required would
+    // put a mandatory field in front of a connector that does not need one.
     const byName = Object.fromEntries((mint.env ?? []).map((e) => [e.name, e]));
-    expect(byName.SIMPLEPRACTICE_PRACTICE.required).toBe(true);
+    expect(byName.SIMPLEPRACTICE_PRACTICE.required).toBe(false);
     expect(byName.SIMPLEPRACTICE_SESSION_FILE.required).toBe(false);
   });
 

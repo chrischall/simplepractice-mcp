@@ -28,7 +28,7 @@ import type { SimplePracticeClient } from '../client.js';
  */
 export const CLIENT_ERROR_TEXT = {
   /** From client.ts `requireConfig()` — thrown by `portalHost()`. */
-  noPractice: 'SIMPLEPRACTICE_PRACTICE is not set',
+  noPractice: 'I do not know which practice portal to talk to yet',
   /** From client.ts `throwForStatus()` 401/403, on the HINT — not the message. */
   sessionExpired: 'The portal session has expired',
   /** From client.ts `requireSession()`, on the MESSAGE. */
@@ -50,9 +50,9 @@ export function classifySimplePracticeError(err: unknown): { kind: string; hint?
     return {
       kind: 'no_practice_host',
       hint:
-        'No practice configured. Set SIMPLEPRACTICE_PRACTICE to your practice\'s portal address — either the ' +
-        'slug ("achievebalancetherapy") or the full host ("achievebalancetherapy.clientsecure.me"). It is the ' +
-        'host in the portal link your provider emailed you.',
+        'No practice known yet. Paste the sign-in link your provider emailed into ' +
+        'simplepractice_verify_sign_in_token — its address names the practice, and this server remembers ' +
+        'it afterwards. SIMPLEPRACTICE_PRACTICE is optional, and only pins the server to one practice.',
     };
   }
   // Rate limiting is checked BEFORE the session arms: a 429 is the far side
@@ -92,7 +92,12 @@ export function registerHealthcheckTools(server: McpServer, client: SimplePracti
       return {
         source: session ? 'portal_session' : null,
         detail: {
-          practice_host: client.portalHost(),
+          // `knownPortalHost`, not `portalHost`: the latter throws, and not
+          // knowing the practice is the ordinary state before anyone has
+          // pasted a sign-in link. A healthcheck that throws where it should
+          // report `practice_host: null` fails at the one job it has — saying
+          // which hop is broken.
+          practice_host: client.knownPortalHost(),
           // When the session was minted — the fact that explains a connector
           // that worked yesterday and does not today. Never the cookie.
           signed_in_at: session?.createdAt ?? null,

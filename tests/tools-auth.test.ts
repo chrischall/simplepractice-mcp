@@ -102,7 +102,44 @@ describe('simplepractice_verify_sign_in_token', () => {
         link: 'https://achievebalancetherapy.clientsecure.me/sign-in/token#tok',
       })
     );
-    expect(out).toEqual({ status: 'verified', signedIn: true });
+    expect(out).toEqual({
+      status: 'verified',
+      signedIn: true,
+      practiceHost: 'achievebalancetherapy.clientsecure.me',
+    });
+    await harness.close();
+  });
+
+  it('signs in to the practice named by the link, with nothing configured', async () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { harness, calls, client } = await harnessFor([
+      {
+        body: { data: { meta: { status: 'verified' } } },
+        setCookie: ['simplepractice-session=S; HttpOnly'],
+      },
+    ]);
+    const out = parseToolResult<any>(
+      await harness.callTool('simplepractice_verify_sign_in_token', {
+        link: 'https://otherpractice.clientsecure.me/sign-in/token#tok',
+      })
+    );
+    expect(out.practiceHost).toBe('otherpractice.clientsecure.me');
+    expect(calls[0].url).toBe(
+      'https://otherpractice.clientsecure.me/client-portal-api/sessions/token'
+    );
+    // And it sticks, so the reads that follow need no configuration either.
+    expect(client.portalHost()).toBe('otherpractice.clientsecure.me');
+    await harness.close();
+  });
+
+  it('asks which practice when a bare token arrives and none is known', async () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { harness, calls } = await harnessFor([]);
+    const result = await harness.callTool('simplepractice_verify_sign_in_token', { link: 'tok' });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toMatch(/which practice/i);
+    // A single-use token must not be spent against a guessed host.
+    expect(calls).toHaveLength(0);
     await harness.close();
   });
 
@@ -166,12 +203,93 @@ describe('session status and sign out', () => {
     await harness.close();
   });
 
-  it('names the env var when the practice is not configured', async () => {
+  it('reports an unknown practice as state, not as a failure', async () => {
+    // Knowing no practice is what a first run looks like now, not a
+    // misconfiguration: the sign-in link is what supplies it.
     delete process.env.SIMPLEPRACTICE_PRACTICE;
     const { harness } = await harnessFor([]);
-    const result = await harness.callTool('simplepractice_session_status');
+    const out = parseToolResult<any>(await harness.callTool('simplepractice_session_status'));
+    expect(out.practiceHost).toBeNull();
+    expect(out.practiceSource).toBeNull();
+    expect(out.signedIn).toBe(false);
+    expect(out.next).toMatch(/simplepractice_verify_sign_in_token/);
+    await harness.close();
+  });
+
+  it('says where the practice came from', async () => {
+    const { harness } = await harnessFor([]);
+    const out = parseToolResult<any>(await harness.callTool('simplepractice_session_status'));
+    expect(out.practiceSource).toBe('environment');
+    await harness.close();
+  });
+
+  it('signs out without a practice rather than failing', async () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { harness } = await harnessFor([]);
+    const out = parseToolResult<any>(await harness.callTool('simplepractice_sign_out'));
+    expect(out.signedOut).toBe(false);
+    await harness.close();
+  });
+});
+
+describe('naming the practice on the request tool', () => {
+  it('bootstraps an unconfigured server so a link can be requested at all', async () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { harness, calls } = await harnessFor([
+      { status: 202, body: { data: { attributes: { expiresIn: '24 hours' } } } },
+    ]);
+    const out = parseToolResult<any>(
+      await harness.callTool('simplepractice_request_sign_in_link', {
+        email: 'a@example.com',
+        practice: 'otherpractice',
+        confirm: true,
+      })
+    );
+    expect(calls[0].url).toBe(
+      'https://otherpractice.clientsecure.me/client-portal-api/sign-in-tokens'
+    );
+    expect(out.practiceHost).toBe('otherpractice.clientsecure.me');
+    await harness.close();
+  });
+
+  it('names the practice in the dry run, before anything is sent', async () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { harness, calls } = await harnessFor([]);
+    const out = parseToolResult<any>(
+      await harness.callTool('simplepractice_request_sign_in_link', {
+        email: 'a@example.com',
+        practice: 'https://otherpractice.clientsecure.me/',
+      })
+    );
+    expect(out.dryRun).toBe(true);
+    expect(out.practiceHost).toBe('otherpractice.clientsecure.me');
+    expect(calls).toHaveLength(0);
+    await harness.close();
+  });
+
+  it('refuses a practice that is not a Client Portal address', async () => {
+    const { harness, calls } = await harnessFor([]);
+    const result = await harness.callTool('simplepractice_request_sign_in_link', {
+      email: 'a@example.com',
+      practice: 'evil.example.com',
+      confirm: true,
+    });
     expect(result.isError).toBe(true);
-    expect(JSON.stringify(result.content)).toContain('SIMPLEPRACTICE_PRACTICE');
+    expect(JSON.stringify(result.content)).toMatch(/not a SimplePractice Client Portal address/);
+    expect(calls).toHaveLength(0);
+    await harness.close();
+  });
+
+  it('asks which practice when the server knows none and none is given', async () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { harness, calls } = await harnessFor([]);
+    const result = await harness.callTool('simplepractice_request_sign_in_link', {
+      email: 'a@example.com',
+      confirm: true,
+    });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toMatch(/which practice/i);
+    expect(calls).toHaveLength(0);
     await harness.close();
   });
 });
