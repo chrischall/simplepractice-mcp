@@ -91,7 +91,7 @@ describe('verifySignInToken', () => {
     expect(JSON.parse(String(calls[0].init.body))).toEqual({
       data: { type: 'sessions', attributes: { type: 'token', token: 'tok' } },
     });
-    expect(result).toEqual({ status: 'verified', signedIn: true });
+    expect(result).toEqual({ status: 'verified', signedIn: true, practiceHost: HOST });
     // The outcome that matters: a later authenticated call can be made.
     expect(client.getSession()?.cookie).toBe('simplepractice-session=SECRET');
   });
@@ -146,7 +146,72 @@ describe('verifySignInToken', () => {
     await expect(verifySignInToken(client, 'tok')).resolves.toEqual({
       status: 'verified',
       signedIn: true,
+      practiceHost: HOST,
     });
+  });
+});
+
+describe('the practice the sign-in link names', () => {
+  const OTHER = 'otherpractice.clientsecure.me';
+  const verified = {
+    body: { data: { meta: { status: 'verified' } } },
+    setCookie: ['simplepractice-session=S'],
+  };
+
+  it('signs in to the practice in the link, with nothing configured at all', async () => {
+    // The headline case: no SIMPLEPRACTICE_PRACTICE anywhere, just the link
+    // out of the email.
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { client, calls } = makeClient([verified]);
+    const result = await verifySignInToken(client, `https://${OTHER}/sign-in/token#tok`);
+
+    expect(calls[0].url).toBe(`https://${OTHER}/client-portal-api/sessions/token`);
+    expect(result.practiceHost).toBe(OTHER);
+    expect(client.portalHost()).toBe(OTHER);
+    expect(client.getSession()?.host).toBe(OTHER);
+  });
+
+  it('lets the link override a practice the environment names', async () => {
+    // Posting the token to the env var's host instead would simply 401: the
+    // token was minted for the practice in the link.
+    const { client, calls } = makeClient([verified]);
+    await verifySignInToken(client, `https://${OTHER}/sign-in/token#tok`);
+    expect(calls[0].url).toBe(`https://${OTHER}/client-portal-api/sessions/token`);
+  });
+
+  it('keeps the configured practice when the link names none', async () => {
+    // The mobile variant points at the bare apex, and a pasted bare token
+    // names nothing either. Both still work when the practice is known.
+    const { client, calls } = makeClient([verified]);
+    await verifySignInToken(
+      client,
+      'https://clientsecure.me/client-portal-api/sign-in/token#tok'
+    );
+    expect(calls[0].url).toBe(`https://${HOST}/client-portal-api/sessions/token`);
+  });
+
+  it('ignores a link outside clientsecure.me rather than posting the token to it', async () => {
+    const { client, calls } = makeClient([verified]);
+    await verifySignInToken(client, 'https://evil.example.com/sign-in/token#tok');
+    expect(calls[0].url).toBe(`https://${HOST}/client-portal-api/sessions/token`);
+  });
+
+  it('asks for the practice when neither the link nor the config names one', async () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { client, calls } = makeClient([verified]);
+    const err = await verifySignInToken(client, 'tok').catch((e: McpToolError) => e);
+    expect(err).toBeInstanceOf(McpToolError);
+    expect((err as McpToolError).message).toMatch(/which practice/i);
+    // And no token went anywhere while we did not know where to send it.
+    expect(calls).toHaveLength(0);
+  });
+
+  it('signs a PIN in to the remembered practice, since a PIN names none', async () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { client, calls } = makeClient([verified, verified]);
+    await verifySignInToken(client, `https://${OTHER}/sign-in/token#tok`);
+    await verifySignInPin(client, 'a@example.com', '123456');
+    expect(calls[1].url).toBe(`https://${OTHER}/client-portal-api/sessions/pin`);
   });
 });
 

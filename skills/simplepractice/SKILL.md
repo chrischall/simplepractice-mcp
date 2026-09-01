@@ -21,18 +21,27 @@ The portal has **no password**. SimplePractice emails a one-time link (or a
 6-digit PIN), and that is the only way in.
 
 1. `simplepractice_session_status` — check first; a session persists between
-   runs, so most of the time there is nothing to do.
-2. `simplepractice_request_sign_in_link` with the user's portal email. It is
+   runs, so most of the time there is nothing to do. It also reports which
+   practice is in play, and whether that came from a link, the environment, or
+   the saved session.
+2. If the user already has the email, skip straight to step 4 — asking for a
+   second link when one is in their inbox spends a rate limit for nothing.
+3. `simplepractice_request_sign_in_link` with the user's portal email. It is
    confirm-gated because it sends a real email and the endpoint is rate-limited
    **per address and per IP** — a retry loop locks the user out of the only
-   auth path there is. Ask before sending, and never send twice.
-3. The user opens the email and gives you the link. Pass it whole to
+   auth path there is. Ask before sending, and never send twice. If the server
+   does not know the practice yet, pass `practice` (the slug, host, or portal
+   URL) — otherwise it has no portal to ask.
+4. The user opens the email and gives you the link. Pass it **whole** to
    `simplepractice_verify_sign_in_token` — it takes the token out of the
-   fragment itself. Tokens are single-use and last 24 hours.
+   fragment *and* the practice out of the host, which is why the whole link is
+   worth more than the token alone. Tokens are single-use and last 24 hours.
 
-`SIMPLEPRACTICE_PRACTICE` must name the practice's portal — the slug or the
-full `<practice>.clientsecure.me` host, from the link the provider emailed.
-If it is unset, every tool says so on its first call.
+Nothing has to be configured: the practice comes from the link, and the stored
+session remembers it. `SIMPLEPRACTICE_PRACTICE` only pins the server to one
+practice. Two link shapes name no practice and need one already known — the
+mobile variant on the bare `clientsecure.me` apex, and a bare token pasted
+without its link.
 
 There is no refresh token. When a session lapses the tools say to sign in
 again; that means another email.

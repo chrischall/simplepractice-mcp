@@ -6,6 +6,7 @@ import {
   APPLICATION_BUILD_VERSION,
   APPLICATION_PLATFORM,
   readPortalHost,
+  resolvePortalHost,
   sessionFilePath,
 } from './config.js';
 import {
@@ -53,27 +54,17 @@ export interface RequestOptions {
   anonymous?: boolean;
 }
 
+/** Where the practice host in play was learned from. */
+export type PracticeSource = 'link' | 'environment' | 'session';
+
 export class SimplePracticeClient {
   private readonly store: SessionStore<PortalSession>;
-  private readonly configError: McpToolError | null;
-  private readonly host: string;
   private readonly fetchImpl: typeof fetch;
+  /** A practice learned at runtime — from a sign-in link, or named on a tool call. */
+  private adoptedHost: string | null = null;
 
   constructor(opts: { fetchImpl?: typeof fetch; store?: SessionStore<PortalSession> } = {}) {
     this.fetchImpl = opts.fetchImpl ?? globalThis.fetch;
-    const host = readPortalHost();
-    // Deferred-config-error: the server must still boot (and answer the host's
-    // install-time tools/list probe) with no configuration; the error surfaces
-    // on the first tool call instead.
-    this.configError = host
-      ? null
-      : new McpToolError(
-          'SIMPLEPRACTICE_PRACTICE is not set, or is not a valid Client Portal address.',
-          {
-            hint: 'Set SIMPLEPRACTICE_PRACTICE to your practice\'s portal address — either the slug ("achievebalancetherapy") or the full host ("achievebalancetherapy.clientsecure.me"). It is the host in the portal link your provider emailed you.',
-          }
-        );
-    this.host = host ?? '';
     this.store =
       opts.store ??
       new SessionStore<PortalSession>({
@@ -83,10 +74,74 @@ export class SimplePracticeClient {
       });
   }
 
-  /** Throws the deferred configuration error, if there is one. */
+  /**
+   * Which practice this server is talking to, and how it found out.
+   *
+   * Resolved per call rather than fixed at construction, because the practice
+   * is usually not known when the process starts: it arrives with the sign-in
+   * link. In order:
+   *
+   *  1. **link** — adopted at runtime from the emailed link (or named on the
+   *     tool call). The most recent explicit statement of intent, and the only
+   *     one that can be right when a token is minted for a different practice
+   *     than the environment names.
+   *  2. **environment** — `SIMPLEPRACTICE_PRACTICE`, an explicit pin for
+   *     someone who wants this server bound to one practice.
+   *  3. **session** — the practice of the stored session. This is what makes
+   *     the link route survive a restart: sign in once, and every later
+   *     process knows the practice with no configuration at all.
+   */
+  private resolveHost(): { host: string; source: PracticeSource } | null {
+    if (this.adoptedHost) return { host: this.adoptedHost, source: 'link' };
+    const configured = readPortalHost();
+    if (configured) return { host: configured, source: 'environment' };
+    const remembered = this.store.getActiveSession()?.host;
+    return remembered ? { host: remembered, source: 'session' } : null;
+  }
+
+  /** The practice host, or `null` when none is known yet. Never throws. */
+  knownPortalHost(): string | null {
+    return this.resolveHost()?.host ?? null;
+  }
+
+  /** How the practice was determined, or `null` when it has not been. */
+  practiceSource(): PracticeSource | null {
+    return this.resolveHost()?.source ?? null;
+  }
+
+  /**
+   * Point this server at a practice for the rest of the process — what the
+   * sign-in link's own host feeds.
+   *
+   * Validated through the same `resolvePortalHost` the environment goes
+   * through, so a link outside `*.clientsecure.me` cannot redirect a token.
+   */
+  adoptPracticeHost(raw: string): string {
+    const host = resolvePortalHost(raw);
+    if (!host) {
+      throw new McpToolError(`"${raw}" is not a SimplePractice Client Portal address.`, {
+        hint: 'A portal address is a single practice under clientsecure.me — the slug ("achievebalancetherapy") or the whole host ("achievebalancetherapy.clientsecure.me").',
+      });
+    }
+    this.adoptedHost = host;
+    return host;
+  }
+
+  /**
+   * The practice host, or the deferred error explaining that none is known.
+   *
+   * Deferred rather than thrown at construction: the server must still boot
+   * (and answer the host's install-time tools/list probe) knowing no practice,
+   * which is now the ordinary first-run state rather than a misconfiguration.
+   */
   private requireConfig(): string {
-    if (this.configError) throw this.configError;
-    return this.host;
+    const host = this.knownPortalHost();
+    if (!host) {
+      throw new McpToolError('I do not know which practice portal to talk to yet.', {
+        hint: 'Paste the sign-in link your provider emailed into simplepractice_verify_sign_in_token — its address names the practice, and this server remembers it. To ask for that link first, pass `practice` to simplepractice_request_sign_in_link, or set SIMPLEPRACTICE_PRACTICE to pin this server to one practice.',
+      });
+    }
+    return host;
   }
 
   portalHost(): string {
@@ -94,8 +149,8 @@ export class SimplePracticeClient {
   }
 
   getSession(): PortalSession | null {
-    if (this.configError) return null;
-    return this.store.get(this.host);
+    const host = this.knownPortalHost();
+    return host ? this.store.get(host) : null;
   }
 
   saveSession(cookie: string): PortalSession {
@@ -106,8 +161,11 @@ export class SimplePracticeClient {
   }
 
   clearSession(): boolean {
-    const host = this.requireConfig();
-    return this.store.remove(host);
+    const host = this.knownPortalHost();
+    // Not knowing the practice is the same outcome as having no session for
+    // it: nothing to sign out of. Throwing would make sign-out the one tool
+    // that fails when it has nothing to do.
+    return host ? this.store.remove(host) : false;
   }
 
   private requireSession(): PortalSession {
@@ -118,7 +176,7 @@ export class SimplePracticeClient {
       // the two-step remediation below is worth more here than the class name —
       // nothing in this server discriminates on the type.
       throw new McpToolError('Not signed in to the SimplePractice Client Portal.', {
-        hint: 'Run simplepractice_request_sign_in_link to have SimplePractice email you a sign-in link, then pass the part of that link after the "#" to simplepractice_verify_sign_in_token.',
+        hint: 'Pass the sign-in link SimplePractice emailed to simplepractice_verify_sign_in_token — the whole link, which names the practice as well as carrying the token. Run simplepractice_request_sign_in_link first if you do not have one.',
       });
     }
     return session;
@@ -158,7 +216,9 @@ export class SimplePracticeClient {
     } catch (err) {
       throw new McpToolError(
         `Could not reach ${host}: ${truncateErrorMessage(messageOf(err))}`,
-        { hint: 'Check the practice address in SIMPLEPRACTICE_PRACTICE and your network connection.' }
+        {
+          hint: `Check your network connection, and that ${host} is really your practice's portal — simplepractice_session_status reports where that address came from.`,
+        }
       );
     }
 

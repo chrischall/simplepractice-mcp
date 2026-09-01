@@ -18,8 +18,8 @@
       "environmentVariables": [
         {
           "name": "SIMPLEPRACTICE_PRACTICE",
-          "description": "Your practice's Client Portal address — the slug (\"achievebalancetherapy\") or the full host (\"achievebalancetherapy.clientsecure.me\").",
-          "isRequired": true,
+          "description": "Optional. Pins the server to one practice — the slug (\"achievebalancetherapy\") or the full host. Unset, the practice comes from your emailed sign-in link.",
+          "isRequired": false,
           "format": "string"
         },
         {

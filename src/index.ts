@@ -10,8 +10,9 @@ import { registerDocumentTools } from './tools/documents.js';
 import { registerHealthcheckTools } from './tools/health.js';
 
 // Built in the caller so the deferred-config-error pattern holds: the server
-// still boots, and answers the host's install-time tools/list probe, with no
-// SIMPLEPRACTICE_PRACTICE set. The error surfaces on the first tool call.
+// still boots, and answers the host's install-time tools/list probe, knowing no
+// practice — which is the ordinary first-run state, since the practice arrives
+// with the sign-in link rather than from the environment.
 const client = new SimplePracticeClient();
 
 await runMcp({

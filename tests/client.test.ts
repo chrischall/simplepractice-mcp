@@ -60,16 +60,89 @@ describe('deferred configuration error', () => {
     expect(() => new SimplePracticeClient({ store: tempStore() })).not.toThrow();
   });
 
-  it('reports no session rather than throwing when unconfigured', () => {
+  it('reports no session rather than throwing when no practice is known', () => {
     delete process.env.SIMPLEPRACTICE_PRACTICE;
     const client = new SimplePracticeClient({ store: tempStore() });
     expect(client.getSession()).toBeNull();
   });
 
-  it('surfaces the configuration error on first use, naming the env var', async () => {
+  it('surfaces the error on first use, leading with the sign-in link', async () => {
     delete process.env.SIMPLEPRACTICE_PRACTICE;
     const client = new SimplePracticeClient({ store: tempStore() });
-    expect(() => client.portalHost()).toThrow(/SIMPLEPRACTICE_PRACTICE/);
+    const err = (() => {
+      try {
+        client.portalHost();
+      } catch (e) {
+        return e as McpToolError;
+      }
+      throw new Error('expected a throw');
+    })();
+    expect(err.message).toMatch(/which practice/i);
+    // The link is now the primary route in, the env var only a shortcut.
+    expect(err.hint).toMatch(/simplepractice_verify_sign_in_token/);
+    expect(err.hint).toMatch(/SIMPLEPRACTICE_PRACTICE/);
+  });
+
+  it('reports the practice as unknown without throwing, for status callers', () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const client = new SimplePracticeClient({ store: tempStore() });
+    expect(client.knownPortalHost()).toBeNull();
+    expect(client.practiceSource()).toBeNull();
+  });
+});
+
+describe('where the practice host comes from', () => {
+  const OTHER = 'otherpractice.clientsecure.me';
+
+  it('takes it from the environment when one is set', () => {
+    const { client } = makeClient();
+    expect(client.portalHost()).toBe(HOST);
+    expect(client.practiceSource()).toBe('environment');
+  });
+
+  it('adopts a practice learned at runtime, over the environment', () => {
+    // The link a user pastes is the ground truth for THAT sign-in: posting its
+    // token to a stale env var's host would simply fail.
+    const { client } = makeClient();
+    expect(client.adoptPracticeHost(OTHER)).toBe(OTHER);
+    expect(client.portalHost()).toBe(OTHER);
+    expect(client.practiceSource()).toBe('link');
+  });
+
+  it('remembers the practice of the stored session when nothing is configured', () => {
+    // The whole point of deriving it: sign in once with a link, and every
+    // later process knows the practice with no configuration at all.
+    const store = tempStore();
+    const configured = new SimplePracticeClient({ store });
+    configured.adoptPracticeHost(OTHER);
+    configured.saveSession('simplepractice-session=S');
+
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const fresh = new SimplePracticeClient({ store });
+    expect(fresh.portalHost()).toBe(OTHER);
+    expect(fresh.practiceSource()).toBe('session');
+    expect(fresh.getSession()?.cookie).toBe('simplepractice-session=S');
+  });
+
+  it('refuses an adopted host that is not a Client Portal address', () => {
+    const { client } = makeClient();
+    expect(() => client.adoptPracticeHost('evil.example.com')).toThrow(McpToolError);
+    // And leaves the previous answer standing rather than half-applying.
+    expect(client.portalHost()).toBe(HOST);
+  });
+
+  it('saves the session under the adopted practice, not the configured one', () => {
+    const { client, store } = makeClient();
+    client.adoptPracticeHost(OTHER);
+    client.saveSession('simplepractice-session=S');
+    expect(store.get(OTHER)?.cookie).toBe('simplepractice-session=S');
+    expect(store.get(HOST)).toBeNull();
+  });
+
+  it('signs out of nothing, rather than throwing, when no practice is known', () => {
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const client = new SimplePracticeClient({ store: tempStore() });
+    expect(client.clearSession()).toBe(false);
   });
 });
 
