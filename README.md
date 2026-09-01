@@ -107,7 +107,7 @@ records the endpoints and the traps, all confirmed against a live portal:
 ```sh
 npm install
 npm run build
-npm test              # 211 tests
+npm test              # 214 tests
 npm run test:coverage # 100% enforced
 npm run typecheck     # vitest does not run tsc — this does
 ```

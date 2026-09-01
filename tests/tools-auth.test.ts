@@ -267,6 +267,50 @@ describe('naming the practice on the request tool', () => {
     await harness.close();
   });
 
+  it('does not adopt the practice on a dry run, which sends nothing', async () => {
+    // A dry run is inert by construction — the confirm gate exists so that it
+    // is. Repointing the process from a preview overrides an explicit
+    // SIMPLEPRACTICE_PRACTICE pin for a send that never happened.
+    const { harness, client, calls } = await harnessFor([]);
+    await harness.callTool('simplepractice_request_sign_in_link', {
+      email: 'a@example.com',
+      practice: 'otherpractice',
+    });
+    expect(client.portalHost()).toBe('achievebalancetherapy.clientsecure.me');
+    expect(client.practiceSource()).toBe('environment');
+    expect(calls).toHaveLength(0);
+    await harness.close();
+  });
+
+  it('does not adopt the practice when the send is rejected', async () => {
+    // Same rule as the sign-in exchange: a practice is earned by working.
+    const { harness, client } = await harnessFor([
+      { status: 429, body: { errors: [{ title: 'Email request limit reached' }] } },
+    ]);
+    const result = await harness.callTool('simplepractice_request_sign_in_link', {
+      email: 'a@example.com',
+      practice: 'otherpractice',
+      confirm: true,
+    });
+    expect(result.isError).toBe(true);
+    expect(client.portalHost()).toBe('achievebalancetherapy.clientsecure.me');
+    await harness.close();
+  });
+
+  it('adopts the practice once the send succeeds, so the link need not repeat it', async () => {
+    const { harness, client } = await harnessFor([
+      { status: 202, body: { data: { attributes: { expiresIn: '24 hours' } } } },
+    ]);
+    await harness.callTool('simplepractice_request_sign_in_link', {
+      email: 'a@example.com',
+      practice: 'otherpractice',
+      confirm: true,
+    });
+    expect(client.portalHost()).toBe('otherpractice.clientsecure.me');
+    expect(client.practiceSource()).toBe('link');
+    await harness.close();
+  });
+
   it('refuses a practice that is not a Client Portal address', async () => {
     const { harness, calls } = await harnessFor([]);
     const result = await harness.callTool('simplepractice_request_sign_in_link', {
