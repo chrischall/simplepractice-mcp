@@ -51,27 +51,33 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       },
     },
     async ({ email, practice, confirm }) => {
-      // Adopted before the dry run too, so the preview names the practice the
-      // email would actually come from.
-      if (practice) client.adoptPracticeHost(practice);
       if (!confirm) {
         return textResult({
           dryRun: true,
           wouldSend: 'a Client Portal sign-in email',
           to: email,
-          practiceHost: client.portalHost(),
+          // Named, not adopted. A dry run sends nothing, so it must not move
+          // the server either — silently overriding a SIMPLEPRACTICE_PRACTICE
+          // pin is not something an inert preview gets to do.
+          practiceHost: practice ? client.validatePracticeHost(practice) : client.portalHost(),
           note: 'Re-run with confirm:true to actually send it. Do not retry a failed send — SimplePractice locks out repeated sign-in requests.',
         });
       }
-      const { expiresIn } = await requestSignInLink(client, email);
-      return textResult({
-        sent: true,
-        to: email,
-        practiceHost: client.portalHost(),
-        expiresIn,
-        next: 'Open the email, copy the sign-in link (or just the part after the "#"), and pass it to simplepractice_verify_sign_in_token.',
-        note: 'This response is the same whether or not the address has an account.',
-      });
+
+      const send = async () => {
+        const { expiresIn } = await requestSignInLink(client, email);
+        return textResult({
+          sent: true,
+          to: email,
+          practiceHost: client.portalHost(),
+          expiresIn,
+          next: 'Open the email, copy the sign-in link (or just the part after the "#"), and pass it to simplepractice_verify_sign_in_token.',
+          note: 'This response is the same whether or not the address has an account.',
+        });
+      };
+      // Scoped exactly as the sign-in exchange is: the practice sticks only if
+      // the send works, so a rejected send leaves the previous one standing.
+      return practice ? client.withPracticeHost(practice, send) : send();
     }
   );
 

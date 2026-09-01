@@ -132,21 +132,32 @@ export class SimplePracticeClient {
   }
 
   /**
-   * Point this server at a practice for the rest of the process — what the
-   * sign-in link's own host feeds.
+   * The host a practice address names, WITHOUT adopting it.
    *
    * Validated through the same `resolvePortalHost` the environment goes
    * through, so a link outside `*.clientsecure.me` cannot redirect a token.
+   *
+   * Separate from {@link adoptPracticeHost} so a caller that only wants to
+   * *name* the practice — a dry run reporting what it would do — can do that
+   * without the side effect. Answering a question should not move the server.
    */
-  adoptPracticeHost(raw: string): string {
+  validatePracticeHost(raw: string): string {
     const host = resolvePortalHost(raw);
     if (!host) {
       throw new McpToolError(`"${raw}" is not a SimplePractice Client Portal address.`, {
         hint: 'A portal address is a single practice under clientsecure.me — the slug ("achievebalancetherapy") or the whole host ("achievebalancetherapy.clientsecure.me").',
       });
     }
-    this.adoptedHost = host;
     return host;
+  }
+
+  /**
+   * Point this server at a practice for the rest of the process — what the
+   * sign-in link's own host feeds.
+   */
+  adoptPracticeHost(raw: string): string {
+    this.adoptedHost = this.validatePracticeHost(raw);
+    return this.adoptedHost;
   }
 
   /**
