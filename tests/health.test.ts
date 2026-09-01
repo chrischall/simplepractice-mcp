@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readFileSync } from 'node:fs';
+import { McpToolError } from '@chrischall/mcp-utils';
 import type { SimplePracticeClient } from '../src/client.js';
-import { registerHealthcheckTools } from '../src/tools/health.js';
+import { registerHealthcheckTools, CLIENT_ERROR_TEXT } from '../src/tools/health.js';
 
 function setup(opts: { session?: unknown; host?: string; probe?: () => Promise<unknown> } = {}) {
   const list = vi.fn(opts.probe ?? (async () => ({ records: [{ id: 'c1' }] })));
@@ -42,8 +44,13 @@ describe('simplepractice_healthcheck', () => {
 
   it('reports a locally-present but server-rejected session as expired, not ok', async () => {
     const out = await setup({
+      // Built the way client.ts's throwForStatus builds a 401: the JSON:API
+      // summary on the message, the remediation on the HINT. Matching only
+      // the message is the bug the auto-review on #13 caught.
       probe: async () => {
-        throw new Error('The portal session has expired — there is no refresh token, so sign in again with simplepractice_request_sign_in_link.');
+        throw new McpToolError('401 Unauthorized', {
+          hint: 'The portal session has expired — there is no refresh token, so sign in again with simplepractice_request_sign_in_link.',
+        });
       },
     }).call();
     expect(out.ok).toBe(false);
@@ -74,11 +81,43 @@ describe('simplepractice_healthcheck', () => {
     expect(JSON.stringify(out)).not.toContain('SUPER-SECRET');
   });
 
-  it('flags an unconfigured practice host distinctly', async () => {
+  it('flags an unconfigured practice distinctly', async () => {
     const out = await setup({
-      probe: async () => { throw new Error('SIMPLEPRACTICE_PRACTICE_HOST is required'); },
+      // The real text from client.ts requireConfig(), which portalHost() calls.
+      probe: async () => {
+        throw new McpToolError('SIMPLEPRACTICE_PRACTICE is not set, or is not a valid Client Portal address.');
+      },
     }).call();
     expect(out.error.kind).toBe('no_practice_host');
+  });
+
+  it('reports a 429 as rate_limited and tells the caller not to retry', async () => {
+    const out = await setup({
+      probe: async () => {
+        throw new McpToolError('429 Too Many Requests', {
+          hint: 'SimplePractice rate-limits sign-in requests per email and per IP. Do not retry — wait before asking for another link.',
+        });
+      },
+    }).call();
+    expect(out.error.kind).toBe('rate_limited');
+    expect(out.hint).toMatch(/do NOT retry/i);
+  });
+
+  it('classifies requireSession\'s not-signed-in message as session_expired', async () => {
+    const out = await setup({
+      probe: async () => { throw new McpToolError('Not signed in to the SimplePractice Client Portal.'); },
+    }).call();
+    expect(out.error.kind).toBe('session_expired');
+  });
+
+  // The guard for the class of bug the auto-review caught: every string this
+  // classifier keys on must still exist in client.ts. If someone rewords an
+  // error there, this fails loudly instead of the arm silently going dead.
+  it('keys only on text client.ts actually produces', () => {
+    const clientSource = readFileSync(new URL('../src/client.ts', import.meta.url), 'utf8');
+    for (const [arm, text] of Object.entries(CLIENT_ERROR_TEXT)) {
+      expect(clientSource, `${arm}: "${text}" no longer appears in client.ts`).toContain(text);
+    }
   });
 
   it('leaves an unrecognised failure to the helper defaults', async () => {

@@ -18,18 +18,55 @@ import type { SimplePracticeClient } from '../client.js';
  * accepted the session just now, not that a cookie exists on disk.
  */
 
-export function classifySimplePracticeError(err: unknown): { kind: string; hint?: string } | undefined {
-  const msg = err instanceof Error ? err.message : String(err);
+/**
+ * Strings this classifier matches, kept as named constants because they are a
+ * CONTRACT WITH client.ts, not free text. `tests/health.test.ts` asserts each
+ * one still appears in that file: the first version of this classifier matched
+ * invented text that no code path ever produced, and every unit test passed
+ * because the tests fabricated errors to match the classifier instead of the
+ * client.
+ */
+export const CLIENT_ERROR_TEXT = {
+  /** From client.ts `requireConfig()` — thrown by `portalHost()`. */
+  noPractice: 'SIMPLEPRACTICE_PRACTICE is not set',
+  /** From client.ts `throwForStatus()` 401/403, on the HINT — not the message. */
+  sessionExpired: 'The portal session has expired',
+  /** From client.ts `requireSession()`, on the MESSAGE. */
+  notSignedIn: 'Not signed in to the SimplePractice Client Portal',
+  /** From client.ts `throwForStatus()` 429, on the HINT. */
+  rateLimited: 'SimplePractice rate-limits sign-in requests',
+} as const;
 
-  if (msg.includes('PRACTICE_HOST')) {
+export function classifySimplePracticeError(err: unknown): { kind: string; hint?: string } | undefined {
+  // The client raises McpToolError, which carries its remediation on `.hint`
+  // and a formatted JSON:API summary on `.message`. A 401 says nothing useful
+  // in the message, so BOTH must be searched — matching only `.message` is
+  // exactly the bug the auto-review on #13 caught.
+  const message = err instanceof Error ? err.message : String(err);
+  const hint = typeof (err as { hint?: unknown })?.hint === 'string' ? (err as { hint: string }).hint : '';
+  const text = `${message}\n${hint}`;
+
+  if (text.includes(CLIENT_ERROR_TEXT.noPractice)) {
     return {
       kind: 'no_practice_host',
-      hint: 'No practice host configured. Set the practice subdomain (e.g. yourpractice.clientsecure.me) before signing in.',
+      hint:
+        'No practice configured. Set SIMPLEPRACTICE_PRACTICE to your practice\'s portal address — either the ' +
+        'slug ("achievebalancetherapy") or the full host ("achievebalancetherapy.clientsecure.me"). It is the ' +
+        'host in the portal link your provider emailed you.',
     };
   }
-  // The portal has no refresh token: an expired session cannot be renewed
-  // silently, so the only fix is a fresh emailed sign-in link.
-  if (msg.includes('session has expired') || msg.includes('Not signed in')) {
+  // Rate limiting is checked BEFORE the session arms: a 429 is the far side
+  // working correctly, and this one is punishing — retrying can lock the
+  // account out of the only auth path it has.
+  if (text.includes(CLIENT_ERROR_TEXT.rateLimited)) {
+    return {
+      kind: 'rate_limited',
+      hint:
+        'SimplePractice rate-limits sign-in requests per email and per IP. The session is not necessarily bad — ' +
+        'do NOT retry, and wait before requesting another link.',
+    };
+  }
+  if (text.includes(CLIENT_ERROR_TEXT.sessionExpired) || text.includes(CLIENT_ERROR_TEXT.notSignedIn)) {
     return {
       kind: 'session_expired',
       hint:
