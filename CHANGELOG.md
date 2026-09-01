@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0](https://github.com/chrischall/simplepractice-mcp/compare/v0.2.0...v0.3.0) (2026-09-01)
+
+
+### Features
+
+* **auth:** take the practice from the emailed sign-in link ([#15](https://github.com/chrischall/simplepractice-mcp/issues/15)) ([fcd18e7](https://github.com/chrischall/simplepractice-mcp/commit/fcd18e75e15ce1713fb6156e805a87d37f418ff8))
+* **health:** add simplepractice_healthcheck ([#13](https://github.com/chrischall/simplepractice-mcp/issues/13)) ([b37dbf2](https://github.com/chrischall/simplepractice-mcp/commit/b37dbf29f97b3f691e07e2fc7c6554e586a96391))
+
+
+### Bug Fixes
+
+* **auth:** stop a dry-run sign-in request from repointing the practice ([#19](https://github.com/chrischall/simplepractice-mcp/issues/19)) ([82f69ce](https://github.com/chrischall/simplepractice-mcp/commit/82f69cef4933b56df4ffb4efdd7d7e92fa05c50d))
+
+
+### Documentation
+
+* **health:** list simplepractice_healthcheck in manifest.json and the tool docs ([#17](https://github.com/chrischall/simplepractice-mcp/issues/17)) ([3e82128](https://github.com/chrischall/simplepractice-mcp/commit/3e8212892e594b387a90ba11994abfb57f30edd9))
+
 ## [0.2.0](https://github.com/chrischall/simplepractice-mcp/compare/v0.1.0...v0.2.0) (2026-08-25)
 
 
