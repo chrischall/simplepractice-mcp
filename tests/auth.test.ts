@@ -206,6 +206,44 @@ describe('the practice the sign-in link names', () => {
     expect(calls).toHaveLength(0);
   });
 
+  it('does not keep the link practice when the exchange fails', async () => {
+    // Links are single-use, so a failed exchange is the ordinary case. Pasting
+    // a stale link for another practice must not strand the process there and
+    // hide the session that already works.
+    const { client } = makeClient([
+      { status: 401, body: { errors: [{ title: 'Authorization has already been used' }] } },
+    ]);
+    client.saveSession('simplepractice-session=MINE');
+
+    await expect(
+      verifySignInToken(client, `https://${OTHER}/sign-in/token#stale`)
+    ).rejects.toThrow(/already been used/);
+
+    expect(client.portalHost()).toBe(HOST);
+    expect(client.getSession()?.cookie).toBe('simplepractice-session=MINE');
+  });
+
+  it('keeps the link practice once the exchange succeeds', async () => {
+    const { client } = makeClient([verified]);
+    await verifySignInToken(client, `https://${OTHER}/sign-in/token#tok`);
+    expect(client.portalHost()).toBe(OTHER);
+  });
+
+  it('restores the previous practice, not merely the configured one', async () => {
+    // The rollback has to put back whatever was adopted before, or a second
+    // failed link would silently demote the practice a first link had earned.
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const { client } = makeClient([
+      verified,
+      { status: 401, body: { errors: [{ title: 'nope' }] } },
+    ]);
+    await verifySignInToken(client, `https://${OTHER}/sign-in/token#good`);
+    await expect(
+      verifySignInToken(client, `https://third.clientsecure.me/sign-in/token#bad`)
+    ).rejects.toThrow(/nope/);
+    expect(client.portalHost()).toBe(OTHER);
+  });
+
   it('signs a PIN in to the remembered practice, since a PIN names none', async () => {
     delete process.env.SIMPLEPRACTICE_PRACTICE;
     const { client, calls } = makeClient([verified, verified]);

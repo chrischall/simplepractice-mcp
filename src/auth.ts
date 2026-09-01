@@ -116,13 +116,17 @@ export async function verifySignInToken(
   client: SimplePracticeClient,
   linkOrToken: string
 ): Promise<VerifyResult> {
-  const token = extractToken(linkOrToken);
+  const attributes = { type: 'token', token: extractToken(linkOrToken) };
   const fromLink = practiceHostFromLink(linkOrToken);
-  if (fromLink) client.adoptPracticeHost(fromLink);
-  // Resolve before posting: with no practice known, the token would otherwise
-  // be spent against a guess, and tokens are single-use.
+  // Scoped, so a link that fails to verify does not leave the process pointed
+  // at its practice — links are single-use, so failing is the ordinary case.
+  if (fromLink) {
+    return client.withPracticeHost(fromLink, () => establishSession(client, attributes));
+  }
+  // No practice in the link, so it has to be known already: resolve before
+  // posting, or a single-use token is spent against a guess.
   client.portalHost();
-  return establishSession(client, { type: 'token', token });
+  return establishSession(client, attributes);
 }
 
 export function verifySignInPin(

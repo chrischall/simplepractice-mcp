@@ -1,6 +1,15 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { McpToolError } from '@chrischall/mcp-utils';
-import { buildQuery, readSetCookie, SimplePracticeClient } from '../src/client.js';
+import { SessionStore } from '@chrischall/mcp-utils/session';
+import {
+  buildQuery,
+  readSetCookie,
+  SimplePracticeClient,
+  type PortalSession,
+} from '../src/client.js';
 import { makeClient, makeSignedInClient, tempStore, HOST } from './helpers.js';
 
 const saved = { ...process.env };
@@ -122,6 +131,39 @@ describe('where the practice host comes from', () => {
     expect(fresh.portalHost()).toBe(OTHER);
     expect(fresh.practiceSource()).toBe('session');
     expect(fresh.getSession()?.cookie).toBe('simplepractice-session=S');
+  });
+
+  it('falls back to the practice signed into most recently, across a restart', async () => {
+    // A → B → A. SessionStore's own active pointer disagrees with itself here:
+    // `add()` leaves an existing key in its original insertion position, so
+    // in-memory it names A while a fresh process, restoring the pointer as the
+    // last key on disk, names B. Ordering on our own createdAt is what makes
+    // the answer the same on both sides of a restart.
+    const dir = mkdtempSync(join(tmpdir(), 'sp-recent-'));
+    const filePath = join(dir, 'session.json');
+    const storeFor = () =>
+      new SessionStore<PortalSession>({
+        filePath,
+        keyOf: (s) => s.host,
+        normalizeKey: (k) => k.toLowerCase(),
+      });
+
+    const first = new SimplePracticeClient({ store: storeFor() });
+    for (const [host, cookie] of [
+      [HOST, 'A1'],
+      [OTHER, 'B1'],
+      [HOST, 'A2'],
+    ]) {
+      first.adoptPracticeHost(host);
+      first.saveSession(`simplepractice-session=${cookie}`);
+      // Distinct createdAt values; the clock is millisecond-resolution.
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const restarted = new SimplePracticeClient({ store: storeFor() });
+    expect(restarted.portalHost()).toBe(HOST);
+    expect(restarted.getSession()?.cookie).toBe('simplepractice-session=A2');
   });
 
   it('refuses an adopted host that is not a Client Portal address', () => {

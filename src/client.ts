@@ -87,16 +87,38 @@ export class SimplePracticeClient {
    *     than the environment names.
    *  2. **environment** — `SIMPLEPRACTICE_PRACTICE`, an explicit pin for
    *     someone who wants this server bound to one practice.
-   *  3. **session** — the practice of the stored session. This is what makes
-   *     the link route survive a restart: sign in once, and every later
+   *  3. **session** — the practice of the most recent sign-in. This is what
+   *     makes the link route survive a restart: sign in once, and every later
    *     process knows the practice with no configuration at all.
    */
   private resolveHost(): { host: string; source: PracticeSource } | null {
     if (this.adoptedHost) return { host: this.adoptedHost, source: 'link' };
     const configured = readPortalHost();
     if (configured) return { host: configured, source: 'environment' };
-    const remembered = this.store.getActiveSession()?.host;
+    const remembered = this.mostRecentSessionHost();
     return remembered ? { host: remembered, source: 'session' } : null;
+  }
+
+  /**
+   * The practice signed into most recently, by our own `createdAt` rather than
+   * `SessionStore`'s active pointer.
+   *
+   * The two agree right up until a practice is signed into twice, and then
+   * they disagree across a restart: `add()` on an existing key leaves the Map
+   * entry in its ORIGINAL insertion position, so the in-memory pointer names
+   * the practice just added, while a fresh process restores the pointer as the
+   * LAST key on disk. Signing in to A, then B, then A again would leave the
+   * next process quietly talking to B.
+   *
+   * `createdAt` is the fact this fallback actually means, and unlike the
+   * pointer it survives the restart.
+   */
+  private mostRecentSessionHost(): string | null {
+    let newest: PortalSession | null = null;
+    for (const session of this.store.list()) {
+      if (!newest || session.createdAt > newest.createdAt) newest = session;
+    }
+    return newest?.host ?? null;
   }
 
   /** The practice host, or `null` when none is known yet. Never throws. */
@@ -125,6 +147,27 @@ export class SimplePracticeClient {
     }
     this.adoptedHost = host;
     return host;
+  }
+
+  /**
+   * Adopt `raw`'s practice for the duration of `fn`, and keep it only if `fn`
+   * succeeds.
+   *
+   * Sign-in links are single-use, so a failed exchange is the ordinary case,
+   * not the exception. Letting a failed attempt stick would leave someone who
+   * pasted a stale link for practice B pointed at B for the life of the
+   * process — and their intact session for practice A would report "Not signed
+   * in" until a restart. A link only earns the practice by working.
+   */
+  async withPracticeHost<T>(raw: string, fn: () => Promise<T>): Promise<T> {
+    const previous = this.adoptedHost;
+    this.adoptPracticeHost(raw);
+    try {
+      return await fn();
+    } catch (err) {
+      this.adoptedHost = previous;
+      throw err;
+    }
   }
 
   /**
