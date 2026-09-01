@@ -7,6 +7,7 @@ import { registerAccountTools } from './tools/account.js';
 import { registerAppointmentTools } from './tools/appointments.js';
 import { registerBillingTools } from './tools/billing.js';
 import { registerDocumentTools } from './tools/documents.js';
+import { registerHealthcheckTools } from './tools/health.js';
 
 // Built in the caller so the deferred-config-error pattern holds: the server
 // still boots, and answers the host's install-time tools/list probe, with no
@@ -25,5 +26,6 @@ await runMcp({
     registerAppointmentTools,
     registerBillingTools,
     registerDocumentTools,
+    registerHealthcheckTools,
   ],
 });
