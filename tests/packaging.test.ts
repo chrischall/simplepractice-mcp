@@ -8,6 +8,7 @@ import { registerAccountTools } from '../src/tools/account.js';
 import { registerAppointmentTools } from '../src/tools/appointments.js';
 import { registerBillingTools } from '../src/tools/billing.js';
 import { registerDocumentTools } from '../src/tools/documents.js';
+import { registerHealthcheckTools } from '../src/tools/health.js';
 import { makeClient } from './helpers.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -85,6 +86,7 @@ describe('manifest tool roster', () => {
       registerAppointmentTools(s, client);
       registerBillingTools(s, client);
       registerDocumentTools(s, client);
+      registerHealthcheckTools(s, client);
     });
     const registered = (await harness.listTools()).map((t) => t.name).sort();
     const declared = manifest.tools.map((t: { name: string }) => t.name).sort();

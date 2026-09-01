@@ -20,6 +20,7 @@ and announcements, read over the portal's own JSON:API.
 | `simplepractice_list_documents` | files the practice has shared |
 | `simplepractice_list_announcements` | practice announcements, with unread counts |
 | `simplepractice_session_status` · `_request_sign_in_link` · `_verify_sign_in_token` · `_verify_sign_in_pin` · `_sign_out` | sign-in |
+| `simplepractice_healthcheck` | Verify credentials and upstream reachability; reports failures as data, not exceptions |
 
 Everything is read-only. Cancelling, signing, and paying happen in the portal.
 
