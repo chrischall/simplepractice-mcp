@@ -3,7 +3,7 @@
   "manifest_version": "0.3",
   "name": "simplepractice-mcp",
   "display_name": "SimplePractice Client Portal",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "SimplePractice Client Portal for Claude — appointments, billing, documents, and announcements",
   "author": {
     "name": "Chris Chall",
