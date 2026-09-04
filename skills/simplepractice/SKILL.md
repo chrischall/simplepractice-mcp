@@ -78,10 +78,10 @@ That default is the point of the parameter. This rung used to be a
 existed and ask for it. An efficiency that has to be requested is one that
 usually is not, and the caller paying for it is the one least able to know.
 
-**Compact is not one thing here.** Two of the tools get a real field
-projection; three get media stripping and no field projection at all, and the
-difference matters because expecting a named field set from the second group
-would be expecting something that was never going to be there.
+**Compact is not one thing here.** One of the tools gets a real field
+projection; the other four get media stripping and no field projection at all,
+and the difference matters because expecting a named field set from the second
+group would be expecting something that was never going to be there.
 
 - **`simplepractice_list_appointments` is projected**, down to
   `{id, startTime, endTime, service, clinician, location, videoRoomUrl,
