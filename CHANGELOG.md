@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/chrischall/simplepractice-mcp/compare/v0.4.0...v0.4.1) (2026-09-04)
+
+
+### Documentation
+
+* **skill:** document the `view` response-shape parameter ([#29](https://github.com/chrischall/simplepractice-mcp/issues/29)) ([10f4f2d](https://github.com/chrischall/simplepractice-mcp/commit/10f4f2d7b1e84bb4502bebfc96ea60659dac6f38))
+
 ## [0.4.0](https://github.com/chrischall/simplepractice-mcp/compare/v0.3.0...v0.4.0) (2026-09-04)
 
 
