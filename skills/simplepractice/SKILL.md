@@ -53,17 +53,88 @@ again; that means another email.
   several people (a parent for two children), so confirm *whose* record you
   are about to report on before you report on it. It also returns the
   practice's real cancellation policy and the client's feature permissions.
-- `simplepractice_list_appointments` — `status: "scheduled"` for confirmed and
+- `simplepractice_list_appointments(status?, page?, pageSize?, view?)` — `status: "scheduled"` for confirmed and
   upcoming, `"requested"` for ones the practice has not confirmed yet.
 - `simplepractice_list_document_requests` — paperwork. `outstandingOnly: true`
   answers "is anything waiting for me?", which is the usual question.
-- `simplepractice_get_billing_overview` — balance due and per-category counts.
+- `simplepractice_get_billing_overview(view?)` — balance due and per-category counts.
   Cheaper than listing the billing collections to find out they are empty.
-- `simplepractice_list_billing_items` — invoices, statements, **superbills**
+- `simplepractice_list_billing_items(kind?, before?, pageSize?, view?)` — invoices, statements, **superbills**
   (the receipt to claim out-of-network insurance), receipts, or account
   history. Pages by cursor: pass the returned `nextCursor` back as `before`.
 - `simplepractice_list_payment_methods`, `simplepractice_list_documents`,
   `simplepractice_list_announcements`.
+
+## Response shape (`view`)
+
+Five of the reads take `view: "compact" | "full"`, and **`compact` is the
+default**: `simplepractice_list_appointments`,
+`simplepractice_list_billing_items`, `simplepractice_get_billing_overview`,
+`simplepractice_get_document_request` and
+`simplepractice_list_announcements`.
+
+That default is the point of the parameter. This rung used to be a
+`compact: false` boolean — opt-in, so a caller had to know the slim shape
+existed and ask for it. An efficiency that has to be requested is one that
+usually is not, and the caller paying for it is the one least able to know.
+
+**Compact is not one thing here.** Two of the tools get a real field
+projection; three get media stripping and no field projection at all, and the
+difference matters because expecting a named field set from the second group
+would be expecting something that was never going to be there.
+
+- **`simplepractice_list_appointments` is projected**, down to
+  `{id, startTime, endTime, service, clinician, location, videoRoomUrl,
+  confirmationStatus, clientConfirmationStatus, isCancellable, fee}`.
+  `clinician` is the first and last name JOINED into one string, and
+  `location` collapses the office record to `"telehealth"` or
+  `"name, city, state"` — so if you are reaching for `clinician.firstName` or
+  the `office` object, they are on `full` only.
+- **`list_billing_items`, `get_billing_overview`, `get_document_request` and
+  `list_announcements` are media-stripped only.** No field projection is
+  claimed, and that is deliberate rather than unfinished: `billing-items` is
+  one polymorphic collection switched five ways (`invoice`, `statement`,
+  `superbill`, `receipt`, account history), and a field list picked for an
+  invoice would quietly drop half of a superbill. The same is true of
+  `document-requests`, where a consent form, a questionnaire and a Good Faith
+  Estimate are different shapes under one endpoint. What compact takes is the
+  practice logo and the clinician avatars; it touches nothing whose key names
+  an amount, a date, or a document link.
+
+One consequence worth knowing on announcements: the rung drops media keys,
+never nulls. `readAt: null` is data — it is what "unread" means — so it
+survives, and the `unread` count stays reconcilable against the rows beneath
+it.
+
+`view: "full"` returns SimplePractice's whole record. There is **no `raw`
+rung**: `full` already IS the untouched upstream payload, so a third value
+could only alias it. And `view` never reaches SimplePractice — it is
+destructured off before the request is built, because `client.list` turns
+whatever it is handed into a JSON:API query string and a stray `view=compact`
+would arrive as a filter SimplePractice never defined.
+
+The other ten tools take no `view`, and each has its own reason:
+
+- **`simplepractice_get_account`, `simplepractice_list_document_requests` and
+  `simplepractice_list_payment_methods` are ALREADY hand-written
+  projections** — every field on them was picked by name with knowledge of the
+  payload. There is no un-projected shape left underneath, so a `view` there
+  would be a parameter that changes nothing, and running a blind rung over that
+  output would let an un-grounded rule overrule a grounded one.
+  (`list_document_requests` also takes `includeBody`, a field the caller
+  explicitly asked for; a blind rung could only take back something chosen on
+  purpose.)
+- **`simplepractice_list_documents` is the exception worth stating**: its
+  PRODUCT is the file references. A practice that shares a scan shares it as a
+  `.jpg` or `.png`, and the blind rung drops any string whose path ends in an
+  image extension — so compacting here would not shrink the answer, it would
+  empty exactly the rows you came for.
+- **`simplepractice_session_status` and `simplepractice_healthcheck`** answer
+  with status, not records.
+- **`simplepractice_request_sign_in_link`, `simplepractice_verify_sign_in_pin`,
+  `simplepractice_verify_sign_in_token` and `simplepractice_sign_out`** are
+  writes. A write's response is a receipt, with nothing to strip and everything
+  to keep.
 
 ## Reading the results honestly
 
