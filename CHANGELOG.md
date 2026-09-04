@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/chrischall/simplepractice-mcp/compare/v0.3.0...v0.4.0) (2026-09-04)
+
+
+### Features
+
+* **tools:** compact by default, on the projection this repo already had ([#23](https://github.com/chrischall/simplepractice-mcp/issues/23)) ([753158b](https://github.com/chrischall/simplepractice-mcp/commit/753158b9a34fc42ffabf87503bf877c4d2ac7085))
+
+
+### Bug Fixes
+
+* **deps:** pick up @chrischall/mcp-utils 0.23.2 ([#28](https://github.com/chrischall/simplepractice-mcp/issues/28)) ([ae683fe](https://github.com/chrischall/simplepractice-mcp/commit/ae683fea40cdd61fc971720f10169162520cb12f))
+
 ## [0.3.0](https://github.com/chrischall/simplepractice-mcp/compare/v0.2.0...v0.3.0) (2026-09-01)
 
 
