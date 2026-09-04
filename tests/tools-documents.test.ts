@@ -173,6 +173,74 @@ describe('simplepractice_get_document_request', () => {
     await harness.close();
   });
 
+  // A document request goes out verbatim — consent forms, questionnaires and
+  // Good Faith Estimates are different shapes under one endpoint, so the blind
+  // rung is the only shrink available. What must survive it is the paperwork:
+  // the questions, the answers already given, and the flag saying a PDF exists.
+  it('strips media off a document request but keeps the questions and answers', async () => {
+    const { harness } = await harnessFor([
+      {
+        body: {
+          data: {
+            id: '2',
+            type: 'documentRequestQuestionnaires',
+            attributes: {
+              documentTitle: 'Intake',
+              hasDocumentPdf: 'true',
+              templateQuestions: ['Q1'],
+              userAnswers: ['A1'],
+              practiceLogoUrl: 'https://cdn.simplepractice.com/logo.png',
+            },
+          },
+        },
+      },
+    ]);
+    const out = parseToolResult<any>(
+      await harness.callTool('simplepractice_get_document_request', { id: '2' })
+    );
+    expect(out.practiceLogoUrl).toBeUndefined();
+    expect(out.templateQuestions).toEqual(['Q1']);
+    expect(out.userAnswers).toEqual(['A1']);
+    // `hasDocumentPdf` reads like a media key but is a boolean fact about the
+    // document. The strip is anchored on the noun, so it stays — and it stays
+    // coerced from the wire's STRING "true", which is the other thing this
+    // handler does and which the rung must not undo.
+    expect(out.hasDocumentPdf).toBe(true);
+    await harness.close();
+  });
+
+  it('returns the untouched document request on view:"full"', async () => {
+    const { harness } = await harnessFor([
+      {
+        body: {
+          data: {
+            id: '2',
+            type: 'documentRequestQuestionnaires',
+            attributes: {
+              hasDocumentPdf: 'false',
+              practiceLogoUrl: 'https://cdn.simplepractice.com/logo.png',
+            },
+          },
+        },
+      },
+    ]);
+    const out = parseToolResult<any>(
+      await harness.callTool('simplepractice_get_document_request', { id: '2', view: 'full' })
+    );
+    expect(out.practiceLogoUrl).toBe('https://cdn.simplepractice.com/logo.png');
+    await harness.close();
+  });
+
+  // `view` is this server's vocabulary, not SimplePractice's. Only the id may
+  // reach the request path; a handler that passed its whole input through would
+  // send an undefined query param upstream.
+  it('never forwards view to the API', async () => {
+    const { harness, calls } = await harnessFor([{ body: { data: null } }]);
+    await harness.callTool('simplepractice_get_document_request', { id: '2', view: 'full' });
+    expect(calls[0].url).not.toContain('view');
+    await harness.close();
+  });
+
   it('url-encodes the id rather than splicing it in raw', async () => {
     const { harness, calls } = await harnessFor([{ body: { data: null } }]);
     await harness.callTool('simplepractice_get_document_request', { id: 'a/b' });
@@ -197,6 +265,87 @@ describe('simplepractice_list_documents and announcements', () => {
     ]);
     const out = parseToolResult<any>(await harness.callTool('simplepractice_list_documents'));
     expect(out.count).toBe(1);
+    await harness.close();
+  });
+
+  // `simplepractice_list_documents` takes no `view`, and this is the assertion
+  // that says why: what it returns IS the file reference. A practice that
+  // shares a scan shares a .jpg, and the blind rung drops any string whose path
+  // ends in an image extension — compacting here would empty the row rather
+  // than shrink it, which is the same reason a photos tool never gets one.
+  it('keeps an image file url, because the file reference is the product', async () => {
+    const { harness } = await harnessFor([
+      {
+        body: {
+          data: [
+            {
+              id: '1',
+              type: 'documents',
+              attributes: {
+                documentName: 'insurance-card.jpg',
+                url: 'https://cdn.simplepractice.com/shared/insurance-card.jpg',
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    const out = parseToolResult<any>(await harness.callTool('simplepractice_list_documents'));
+    expect(out.documents[0].url).toBe('https://cdn.simplepractice.com/shared/insurance-card.jpg');
+    await harness.close();
+  });
+
+  // Announcements ARE stripped: a banner on a text post is decoration. The
+  // unread count above the rows is computed from `readAt`, so this also pins
+  // that the rung drops media keys and never nulls — a strip that removed the
+  // null `readAt` would leave the count unreconcilable against the rows.
+  it('strips an announcement banner while leaving a null readAt to be counted', async () => {
+    const { harness } = await harnessFor([
+      {
+        body: {
+          data: [
+            {
+              id: '1',
+              type: 'announcements',
+              attributes: {
+                title: 'Office closed Monday',
+                readAt: null,
+                bannerUrl: 'https://cdn.simplepractice.com/banner.png',
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    const out = parseToolResult<any>(await harness.callTool('simplepractice_list_announcements'));
+    expect(out.announcements[0].bannerUrl).toBeUndefined();
+    expect(out.announcements[0].title).toBe('Office closed Monday');
+    expect(out.announcements[0].readAt).toBeNull();
+    expect(out.unread).toBe(1);
+    await harness.close();
+  });
+
+  it('returns the untouched announcement on view:"full"', async () => {
+    const { harness } = await harnessFor([
+      {
+        body: {
+          data: [
+            {
+              id: '1',
+              type: 'announcements',
+              attributes: {
+                title: 'A',
+                bannerUrl: 'https://cdn.simplepractice.com/banner.png',
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    const out = parseToolResult<any>(
+      await harness.callTool('simplepractice_list_announcements', { view: 'full' })
+    );
+    expect(out.announcements[0].bannerUrl).toBe('https://cdn.simplepractice.com/banner.png');
     await harness.close();
   });
 

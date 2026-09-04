@@ -1,10 +1,18 @@
 import { z } from 'zod';
-import { isCompact, viewArg, viewResponse } from '../view.js';
 import { minifiedResult, schemaConfirm, toolAnnotations } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SimplePracticeClient } from '../client.js';
 import { requestSignInLink, verifySignInPin, verifySignInToken } from '../auth.js';
 
+/**
+ * No `view` here, deliberately.
+ *
+ * Nothing in this file answers with a SimplePractice record: every response is
+ * a small object this server builds — local session state, a dry-run preview,
+ * the result of a sign-in exchange. There is no upstream payload to project or
+ * strip, and none of these are reads a caller pages through, so the rung would
+ * have nothing to switch between.
+ */
 export function registerAuthTools(server: McpServer, client: SimplePracticeClient): void {
   server.registerTool(
     'simplepractice_session_status',

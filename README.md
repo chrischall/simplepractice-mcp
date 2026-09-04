@@ -24,6 +24,14 @@ and announcements, read over the portal's own JSON:API.
 
 Everything is read-only. Cancelling, signing, and paying happen in the portal.
 
+The reads that answer with a SimplePractice record rather than a projection —
+appointments, billing items, the billing overview, one document request,
+announcements — take a `view`. It defaults to `compact`, which returns the slim
+projection where this server has one and otherwise drops logo and avatar URLs a
+model cannot see; `view: "full"` returns the record untouched.
+`simplepractice_list_documents` deliberately takes none: what it returns is the
+file reference, and a shared scan is a `.jpg`.
+
 ## Setup
 
 ```sh

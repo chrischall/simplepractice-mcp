@@ -1,9 +1,18 @@
 import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
-import { isCompact, viewArg, viewResponse } from '../view.js';
 import { parseJsonString } from '../jsonapi.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SimplePracticeClient } from '../client.js';
 
+/**
+ * No `view` here, deliberately.
+ *
+ * `simplepractice_get_account` returns a hand-written projection: every field
+ * on it is picked by name out of `/environment`, chosen WITH knowledge of the
+ * payload (which is why `clientMayCancelAppointments` and the parsed
+ * `permissions` string are on it at all). There is no un-projected upstream
+ * shape left for a blind media-strip to act on, so a `view` parameter here
+ * would be one that changes nothing — worse than none.
+ */
 export function registerAccountTools(server: McpServer, client: SimplePracticeClient): void {
   server.registerTool(
     'simplepractice_get_account',
