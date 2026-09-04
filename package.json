@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "license": "MIT",
   "mcpName": "io.github.chrischall/simplepractice-mcp",
-  "description": "SimplePractice Client Portal MCP server for Claude — developed and maintained by AI (Claude Code)",
+  "description": "SimplePractice Client Portal MCP server for Claude \u2014 developed and maintained by AI (Claude Code)",
   "author": "Claude Code (AI) <https://www.anthropic.com/claude>",
   "repository": {
     "type": "git",
@@ -34,7 +34,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@chrischall/mcp-utils": "^0.19.3",
+    "@chrischall/mcp-utils": "^0.23.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "dotenv": "^17.4.2",
     "zod": "^4.4.3"

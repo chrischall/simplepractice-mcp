@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { textResult, toolAnnotations } from '@chrischall/mcp-utils';
+import { isCompact, viewArg, viewResponse } from '../view.js';
+import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SimplePracticeClient } from '../client.js';
 import { asBoolean } from '../jsonapi.js';
@@ -61,7 +62,7 @@ export function registerBillingTools(server: McpServer, client: SimplePracticeCl
         page: before ? { size: pageSize, before } : { size: pageSize },
       });
       const last = records[records.length - 1];
-      return textResult({
+      return minifiedResult({
         kind,
         count: records.length,
         endBalance: meta?.endBalance ?? null,
@@ -82,7 +83,7 @@ export function registerBillingTools(server: McpServer, client: SimplePracticeCl
     },
     async () => {
       const overview = await loadClientRelationship(client, 'clientBillingOverview');
-      return textResult(overview ?? { note: 'No billing overview returned for this client.' });
+      return minifiedResult(overview ?? { note: 'No billing overview returned for this client.' });
     }
   );
 
@@ -97,7 +98,7 @@ export function registerBillingTools(server: McpServer, client: SimplePracticeCl
     async () => {
       const cards = await loadClientRelationship(client, 'cards');
       const list = Array.isArray(cards) ? cards : [];
-      return textResult({
+      return minifiedResult({
         count: list.length,
         paymentMethods: list.map((c) => ({
           id: c.id,

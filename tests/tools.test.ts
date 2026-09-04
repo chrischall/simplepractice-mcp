@@ -155,10 +155,10 @@ describe('simplepractice_list_appointments', () => {
     await harness.close();
   });
 
-  it('returns full records when compact is off', async () => {
+  it('returns full records on view:"full"', async () => {
     const { harness } = await harnessFor(registerAppointmentTools, [appointmentsDoc]);
     const out = parseToolResult<any>(
-      await harness.callTool('simplepractice_list_appointments', { compact: false })
+      await harness.callTool('simplepractice_list_appointments', { view: 'full' })
     );
     expect(out.appointments[0]).toHaveProperty('type', 'appointments');
     await harness.close();

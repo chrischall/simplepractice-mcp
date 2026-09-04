@@ -1,4 +1,5 @@
-import { textResult, toolAnnotations } from '@chrischall/mcp-utils';
+import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
+import { isCompact, viewArg, viewResponse } from '../view.js';
 import { parseJsonString } from '../jsonapi.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SimplePracticeClient } from '../client.js';
@@ -25,7 +26,7 @@ export function registerAccountTools(server: McpServer, client: SimplePracticeCl
       const name = (c: Record<string, unknown>) =>
         [c.preferredName ?? c.firstName, c.lastName].filter(Boolean).join(' ');
 
-      return textResult({
+      return minifiedResult({
         practice: practice && {
           id: practice.id,
           name: practice.fullName,

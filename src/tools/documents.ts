@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { textResult, toolAnnotations } from '@chrischall/mcp-utils';
+import { isCompact, viewArg, viewResponse } from '../view.js';
+import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SimplePracticeClient } from '../client.js';
 import { asBoolean } from '../jsonapi.js';
@@ -55,7 +56,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
         }
         return base;
       });
-      return textResult({
+      return minifiedResult({
         count: items.length,
         outstanding: records.filter((r) => !SETTLED.has(String(r.status))).length,
         welcomeText: meta?.welcomeText ?? null,
@@ -75,8 +76,8 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     async ({ id }) => {
       const { records } = await client.list(`/document-requests/${encodeURIComponent(id)}`);
       const record = records[0];
-      if (!record) return textResult({ found: false, id });
-      return textResult({
+      if (!record) return minifiedResult({ found: false, id });
+      return minifiedResult({
         ...record,
         hasDocumentPdf: asBoolean(record.hasDocumentPdf) ?? false,
       });
@@ -94,7 +95,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     },
     async ({ pageSize }) => {
       const { records } = await client.list('/documents', { page: { size: pageSize } });
-      return textResult({ count: records.length, documents: records });
+      return minifiedResult({ count: records.length, documents: records });
     }
   );
 
@@ -110,7 +111,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     },
     async ({ pageSize }) => {
       const { records } = await client.list('/announcements', { page: { size: pageSize } });
-      return textResult({
+      return minifiedResult({
         count: records.length,
         unread: records.filter((r) => r.readAt === null || r.readAt === undefined).length,
         announcements: records,
