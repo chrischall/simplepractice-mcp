@@ -1,9 +1,18 @@
 import { z } from 'zod';
-import { textResult, toolAnnotations, schemaConfirm } from '@chrischall/mcp-utils';
+import { minifiedResult, schemaConfirm, toolAnnotations } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SimplePracticeClient } from '../client.js';
 import { requestSignInLink, verifySignInPin, verifySignInToken } from '../auth.js';
 
+/**
+ * No `view` here, deliberately.
+ *
+ * Nothing in this file answers with a SimplePractice record: every response is
+ * a small object this server builds — local session state, a dry-run preview,
+ * the result of a sign-in exchange. There is no upstream payload to project or
+ * strip, and none of these are reads a caller pages through, so the rung would
+ * have nothing to switch between.
+ */
 export function registerAuthTools(server: McpServer, client: SimplePracticeClient): void {
   server.registerTool(
     'simplepractice_session_status',
@@ -16,7 +25,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     async () => {
       const host = client.knownPortalHost();
       const session = client.getSession();
-      return textResult({
+      return minifiedResult({
         practiceHost: host,
         // Not knowing the practice yet is a state to report, not an error:
         // it is what a first run looks like before anyone has pasted a link.
@@ -52,7 +61,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     },
     async ({ email, practice, confirm }) => {
       if (!confirm) {
-        return textResult({
+        return minifiedResult({
           dryRun: true,
           wouldSend: 'a Client Portal sign-in email',
           to: email,
@@ -66,7 +75,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
 
       const send = async () => {
         const { expiresIn } = await requestSignInLink(client, email);
-        return textResult({
+        return minifiedResult({
           sent: true,
           to: email,
           practiceHost: client.portalHost(),
@@ -94,7 +103,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
           .describe('The sign-in link from the email, or just the token after the "#".'),
       },
     },
-    async ({ link }) => textResult(await verifySignInToken(client, link))
+    async ({ link }) => minifiedResult(await verifySignInToken(client, link))
   );
 
   server.registerTool(
@@ -108,7 +117,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
         pin: z.string().regex(/^\d{6}$/, 'The PIN is exactly 6 digits.'),
       },
     },
-    async ({ email, pin }) => textResult(await verifySignInPin(client, email, pin))
+    async ({ email, pin }) => minifiedResult(await verifySignInPin(client, email, pin))
   );
 
   server.registerTool(
@@ -118,6 +127,6 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       annotations: toolAnnotations({ readOnly: false, idempotent: true }),
       inputSchema: {},
     },
-    async () => textResult({ signedOut: client.clearSession() })
+    async () => minifiedResult({ signedOut: client.clearSession() })
   );
 }

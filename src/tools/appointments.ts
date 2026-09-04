@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { textResult, toolAnnotations } from '@chrischall/mcp-utils';
+import { isCompact, viewArg } from '../view.js';
+import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SimplePracticeClient } from '../client.js';
 
@@ -39,25 +40,22 @@ export function registerAppointmentTools(server: McpServer, client: SimplePracti
           .describe('Which side of the pending-confirmation filter to read.'),
         page: z.number().int().positive().default(1),
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
-        compact: z
-          .boolean()
-          .default(true)
-          .describe('Return a slim projection. Set false for the full records.'),
+        view: viewArg(),
       },
     },
-    async ({ status, page, pageSize, compact }) => {
+    async ({ status, page, pageSize, view }) => {
       const { records } = await client.list('/appointments', {
         include: 'clinician,office,client',
         filter: { hasPendingConfirmation: status === 'requested' },
         page: { number: page, size: pageSize },
       });
-      return textResult({
+      return minifiedResult({
         status,
         page,
         count: records.length,
         // The API sends no total; a short page is the last page.
         hasMore: records.length >= pageSize,
-        appointments: compact ? records.map(compactAppointment) : records,
+        appointments: isCompact(view) ? records.map(compactAppointment) : records,
       });
     }
   );

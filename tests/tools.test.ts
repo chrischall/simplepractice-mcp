@@ -155,10 +155,10 @@ describe('simplepractice_list_appointments', () => {
     await harness.close();
   });
 
-  it('returns full records when compact is off', async () => {
+  it('returns full records on view:"full"', async () => {
     const { harness } = await harnessFor(registerAppointmentTools, [appointmentsDoc]);
     const out = parseToolResult<any>(
-      await harness.callTool('simplepractice_list_appointments', { compact: false })
+      await harness.callTool('simplepractice_list_appointments', { view: 'full' })
     );
     expect(out.appointments[0]).toHaveProperty('type', 'appointments');
     await harness.close();
@@ -245,6 +245,72 @@ describe('simplepractice_list_billing_items', () => {
     await harness.close();
   });
 
+  // `billing-items` is the one read here with no projection — five polymorphic
+  // `thisType` shapes under one endpoint — so the blind rung is all it has.
+  // These two assert both halves of the same call: the decoration goes and the
+  // money does not. A `view` that dropped `amount` or kept `practiceLogoUrl`
+  // would pass one of them and fail the other.
+  it('strips media off billing items by default and keeps the amounts', async () => {
+    const { harness } = await harnessFor(registerBillingTools, [
+      {
+        body: {
+          data: [
+            {
+              id: '12',
+              type: 'invoices',
+              attributes: {
+                cursorId: 'c-12',
+                amount: '150.00',
+                logoUrl: 'https://cdn.simplepractice.com/practice-logo.png',
+                documentUrl: 'https://cdn.simplepractice.com/invoice-12.pdf',
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    const out = parseToolResult<any>(await harness.callTool('simplepractice_list_billing_items'));
+    expect(out.items[0].logoUrl).toBeUndefined();
+    expect(out.items[0].amount).toBe('150.00');
+    // A .pdf is not an image extension and `documentUrl` is not a media key:
+    // the link to the invoice itself has to survive the rung that shrinks it.
+    expect(out.items[0].documentUrl).toBe('https://cdn.simplepractice.com/invoice-12.pdf');
+    await harness.close();
+  });
+
+  it('returns the untouched billing item on view:"full"', async () => {
+    const { harness } = await harnessFor(registerBillingTools, [
+      {
+        body: {
+          data: [
+            {
+              id: '12',
+              type: 'invoices',
+              attributes: { logoUrl: 'https://cdn.simplepractice.com/practice-logo.png' },
+            },
+          ],
+        },
+      },
+    ]);
+    const out = parseToolResult<any>(
+      await harness.callTool('simplepractice_list_billing_items', { view: 'full' })
+    );
+    expect(out.items[0].logoUrl).toBe('https://cdn.simplepractice.com/practice-logo.png');
+    await harness.close();
+  });
+
+  // `view` is ours, not SimplePractice's. `client.list` serialises whatever it
+  // is handed into the query string, so a handler that forwarded its whole
+  // input would send `view=compact` to an API that never defined it — a bug two
+  // sibling repos shipped. Asserting on the URL is the only way to catch it:
+  // the response looks identical either way.
+  it('never forwards view to the API', async () => {
+    const { harness, calls } = await harnessFor(registerBillingTools, [{ body: { data: [] } }]);
+    await harness.callTool('simplepractice_list_billing_items', { view: 'full' });
+    expect(calls[0].url).not.toContain('view');
+    await harness.close();
+  });
+
   it('offers no cursor when the page was short', async () => {
     const { harness } = await harnessFor(registerBillingTools, [
       { body: { data: [{ id: '1', type: 'invoices', attributes: { cursorId: 'c-1' } }] } },
@@ -305,6 +371,35 @@ describe('simplepractice_list_billing_items', () => {
     expect(calls[1].url).toContain('include=clientBillingOverview');
     expect(out.balanceDue).toBe(0);
     expect(out.insuranceInfoCount).toBe(1);
+    await harness.close();
+  });
+
+  // The overview goes out un-projected too, so it gets the same rung. The
+  // balance is the whole point of the tool: this is the assertion that fails if
+  // the strip is ever pointed at something it should not touch.
+  it('strips media off the billing overview but never the balance', async () => {
+    const { harness } = await harnessFor(registerBillingTools, [
+      environmentResponse,
+      clientWith(
+        [
+          {
+            id: '1',
+            type: 'clientBillingOverviews',
+            attributes: {
+              balanceDue: 42.5,
+              avatar: 'https://cdn.simplepractice.com/clinician.jpg',
+            },
+          },
+        ],
+        'clientBillingOverview',
+        { id: '1', type: 'clientBillingOverviews' }
+      ),
+    ]);
+    const out = parseToolResult<any>(
+      await harness.callTool('simplepractice_get_billing_overview')
+    );
+    expect(out.avatar).toBeUndefined();
+    expect(out.balanceDue).toBe(42.5);
     await harness.close();
   });
 

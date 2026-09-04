@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { textResult, toolAnnotations } from '@chrischall/mcp-utils';
+import { viewArg, viewResponse } from '../view.js';
+import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SimplePracticeClient } from '../client.js';
 import { asBoolean } from '../jsonapi.js';
@@ -28,6 +29,9 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
           .describe('Include the full document body/questions. Off by default — these are long.'),
       },
     },
+    // No `view`: `items` below is a hand-written projection, and `includeBody`
+    // is a field the caller explicitly asked for. A blind rung run over that
+    // output could only take back something chosen on purpose.
     async ({ outstandingOnly, pageSize, includeBody }) => {
       const { records, meta } = await client.list('/document-requests', {
         page: { size: pageSize },
@@ -55,7 +59,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
         }
         return base;
       });
-      return textResult({
+      return minifiedResult({
         count: items.length,
         outstanding: records.filter((r) => !SETTLED.has(String(r.status))).length,
         welcomeText: meta?.welcomeText ?? null,
@@ -70,13 +74,23 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       description:
         'One document request in full, including its body or its questions and the answers already given.',
       annotations: toolAnnotations({ readOnly: true }),
-      inputSchema: { id: z.string().min(1).describe('The document request id.') },
+      inputSchema: {
+        id: z.string().min(1).describe('The document request id.'),
+        view: viewArg(),
+      },
     },
-    async ({ id }) => {
+    // `view` is destructured off rather than passed on: the id is the only part
+    // of this input that may reach the request path.
+    async ({ id, view }) => {
       const { records } = await client.list(`/document-requests/${encodeURIComponent(id)}`);
       const record = records[0];
-      if (!record) return textResult({ found: false, id });
-      return textResult({
+      if (!record) return minifiedResult({ found: false, id });
+      // The record goes out verbatim — a consent form, a questionnaire and a
+      // Good Faith Estimate are different shapes under one endpoint, so there
+      // is no field list to pick. Compact strips the practice logo and
+      // clinician avatars these carry; `hasDocumentPdf` is a fact about the
+      // document, not a media key, and survives.
+      return viewResponse(view, {
         ...record,
         hasDocumentPdf: asBoolean(record.hasDocumentPdf) ?? false,
       });
@@ -92,9 +106,14 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
       },
     },
+    // No `view`, and this one is the exception worth stating: the PRODUCT of
+    // this tool is the file references themselves. A practice that shares a
+    // scan shares it as a .jpg or .png, and the blind rung drops any string
+    // whose path ends in an image extension — so compacting here would empty
+    // exactly the rows a caller came for rather than shrink them.
     async ({ pageSize }) => {
       const { records } = await client.list('/documents', { page: { size: pageSize } });
-      return textResult({ count: records.length, documents: records });
+      return minifiedResult({ count: records.length, documents: records });
     }
   );
 
@@ -106,11 +125,17 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       annotations: toolAnnotations({ readOnly: true }),
       inputSchema: {
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
+        view: viewArg(),
       },
     },
-    async ({ pageSize }) => {
+    async ({ pageSize, view }) => {
       const { records } = await client.list('/announcements', { page: { size: pageSize } });
-      return textResult({
+      // Verbatim upstream records again. An announcement is text the practice
+      // posted, so its banner and author avatar are decoration a model cannot
+      // see — and `readAt: null` is data, which this rung leaves alone (it
+      // drops media keys, never nulls), so the unread count above stays
+      // reconcilable against the rows below it.
+      return viewResponse(view, {
         count: records.length,
         unread: records.filter((r) => r.readAt === null || r.readAt === undefined).length,
         announcements: records,
