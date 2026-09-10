@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.2](https://github.com/chrischall/simplepractice-mcp/compare/v0.4.1...v0.4.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* **deps:** @chrischall/mcp-utils 0.26.1 ([#42](https://github.com/chrischall/simplepractice-mcp/issues/42)) ([f151ce0](https://github.com/chrischall/simplepractice-mcp/commit/f151ce04c0a43ba2480b45a51be9c242bcd0584e))
+* **deps:** bump hono from 4.13.4 to 4.13.7 ([#40](https://github.com/chrischall/simplepractice-mcp/issues/40)) ([d433b52](https://github.com/chrischall/simplepractice-mcp/commit/d433b52cb250693402d91f6d9dee43fd4f3a83e4))
+* **deps:** declare the peer floors mcp-utils 0.26.1 requires ([#43](https://github.com/chrischall/simplepractice-mcp/issues/43)) ([76db2fe](https://github.com/chrischall/simplepractice-mcp/commit/76db2febb00f6fcfe74a05aee37abda5e7f11c10))
+
 ## [0.4.1](https://github.com/chrischall/simplepractice-mcp/compare/v0.4.0...v0.4.1) (2026-09-04)
 
 
