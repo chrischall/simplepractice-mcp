@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { isCompact, viewArg } from '../view.js';
 import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { SimplePracticeClient } from '../client.js';
 
 const PAGE_SIZE_MAX = 50;
@@ -33,7 +33,7 @@ export function registerAppointmentTools(server: McpServer, client: SimplePracti
       description:
         'Appointments from the Client Portal. status "scheduled" returns confirmed/upcoming ones; "requested" returns those still awaiting the practice\'s confirmation. Pages by number.',
       annotations: toolAnnotations({ readOnly: true }),
-      inputSchema: {
+      inputSchema: z.object({
         status: z
           .enum(['scheduled', 'requested'])
           .default('scheduled')
@@ -41,7 +41,7 @@ export function registerAppointmentTools(server: McpServer, client: SimplePracti
         page: z.number().int().positive().default(1),
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
         view: viewArg(),
-      },
+      }),
     },
     async ({ status, page, pageSize, view }) => {
       const { records } = await client.list('/appointments', {

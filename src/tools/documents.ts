@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { viewArg, viewResponse } from '../view.js';
 import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { SimplePracticeClient } from '../client.js';
 import { asBoolean } from '../jsonapi.js';
 
@@ -17,7 +17,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       description:
         'Paperwork the practice has sent — consents, questionnaires, contact and insurance forms, Good Faith Estimates, shared files. Use outstandingOnly to see just what still needs the client\'s attention.',
       annotations: toolAnnotations({ readOnly: true }),
-      inputSchema: {
+      inputSchema: z.object({
         outstandingOnly: z
           .boolean()
           .default(false)
@@ -27,7 +27,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
           .boolean()
           .default(false)
           .describe('Include the full document body/questions. Off by default — these are long.'),
-      },
+      }),
     },
     // No `view`: `items` below is a hand-written projection, and `includeBody`
     // is a field the caller explicitly asked for. A blind rung run over that
@@ -74,10 +74,10 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       description:
         'One document request in full, including its body or its questions and the answers already given.',
       annotations: toolAnnotations({ readOnly: true }),
-      inputSchema: {
+      inputSchema: z.object({
         id: z.string().min(1).describe('The document request id.'),
         view: viewArg(),
-      },
+      }),
     },
     // `view` is destructured off rather than passed on: the id is the only part
     // of this input that may reach the request path.
@@ -102,9 +102,9 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     {
       description: 'Files the practice has shared through the Client Portal.',
       annotations: toolAnnotations({ readOnly: true }),
-      inputSchema: {
+      inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
-      },
+      }),
     },
     // No `view`, and this one is the exception worth stating: the PRODUCT of
     // this tool is the file references themselves. A practice that shares a
@@ -123,10 +123,10 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       description:
         'Announcements the practice has posted to the Client Portal. readAt is null on unread ones.',
       annotations: toolAnnotations({ readOnly: true }),
-      inputSchema: {
+      inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
         view: viewArg(),
-      },
+      }),
     },
     async ({ pageSize, view }) => {
       const { records } = await client.list('/announcements', { page: { size: pageSize } });
