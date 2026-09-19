@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { minifiedResult, schemaConfirm, toolAnnotations } from '@chrischall/mcp-utils';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { SimplePracticeClient } from '../client.js';
 import { requestSignInLink, verifySignInPin, verifySignInToken } from '../auth.js';
 
@@ -20,7 +20,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       description:
         'Report whether this server holds a Client Portal session, for which practice, and how that practice was determined (from a sign-in link, from SIMPLEPRACTICE_PRACTICE, or remembered from the stored session). Reads local state only — makes no network call.',
       annotations: toolAnnotations({ readOnly: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => {
       const host = client.knownPortalHost();
@@ -47,7 +47,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       description:
         'Ask SimplePractice to email a sign-in link to a Client Portal address. The portal has no password — this is how you sign in. Sends a real email and is rate-limited per email address AND per IP, so it requires confirm:true. A success does not prove the address has an account: the API answers identically for unknown addresses by design.',
       annotations: toolAnnotations({ readOnly: false, idempotent: false }),
-      inputSchema: {
+      inputSchema: z.object({
         email: z.string().email().describe('The email address the Client Portal is registered to.'),
         practice: z
           .string()
@@ -57,7 +57,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
             'The practice whose portal to sign in to — the slug ("achievebalancetherapy"), the host, or the portal URL. Only needed when this server does not know the practice yet; signing in with an emailed link teaches it, and it then remembers.'
           ),
         confirm: schemaConfirm,
-      },
+      }),
     },
     async ({ email, practice, confirm }) => {
       if (!confirm) {
@@ -96,12 +96,12 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       description:
         'Exchange an emailed sign-in link (or the token in it) for a Client Portal session. Accepts the whole link or just the part after the "#". Prefer passing the WHOLE link: its address names the practice, so no practice has to be configured, and this server remembers it afterwards. Tokens are single-use and last 24 hours.',
       annotations: toolAnnotations({ readOnly: false, idempotent: false }),
-      inputSchema: {
+      inputSchema: z.object({
         link: z
           .string()
           .min(1)
           .describe('The sign-in link from the email, or just the token after the "#".'),
-      },
+      }),
     },
     async ({ link }) => minifiedResult(await verifySignInToken(client, link))
   );
@@ -112,10 +112,10 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       description:
         'Exchange a 6-digit Client Portal sign-in PIN for a session, for practices that email a code instead of a link. Single-use.',
       annotations: toolAnnotations({ readOnly: false, idempotent: false }),
-      inputSchema: {
+      inputSchema: z.object({
         email: z.string().email().describe('The address the PIN was sent to.'),
         pin: z.string().regex(/^\d{6}$/, 'The PIN is exactly 6 digits.'),
-      },
+      }),
     },
     async ({ email, pin }) => minifiedResult(await verifySignInPin(client, email, pin))
   );
@@ -125,7 +125,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     {
       description: 'Discard the stored Client Portal session from local state.',
       annotations: toolAnnotations({ readOnly: false, idempotent: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => minifiedResult({ signedOut: client.clearSession() })
   );

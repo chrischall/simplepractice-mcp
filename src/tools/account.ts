@@ -1,6 +1,7 @@
+import { z } from 'zod';
 import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
 import { parseJsonString } from '../jsonapi.js';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { SimplePracticeClient } from '../client.js';
 
 /**
@@ -20,7 +21,7 @@ export function registerAccountTools(server: McpServer, client: SimplePracticeCl
       description:
         'The practice, the signed-in client, and every client this login can see. One portal login is a "client access" and may cover more than one client — a parent seeing two children, say — so clients is always a list.',
       annotations: toolAnnotations({ readOnly: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => {
       const { records } = await client.list('/environment', {
