@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/chrischall/simplepractice-mcp/compare/v0.4.2...v1.0.0) (2026-09-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mcp:** migrate server to SDK v2 ([#47](https://github.com/chrischall/simplepractice-mcp/issues/47))
+
+### Features
+
+* **mcp:** migrate server to SDK v2 ([#47](https://github.com/chrischall/simplepractice-mcp/issues/47)) ([670699c](https://github.com/chrischall/simplepractice-mcp/commit/670699cf33a579f7b824500dd0bc8ee34bb99eb7))
+
 ## [0.4.2](https://github.com/chrischall/simplepractice-mcp/compare/v0.4.1...v0.4.2) (2026-09-10)
 
 
