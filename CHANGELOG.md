@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/chrischall/simplepractice-mcp/compare/v1.0.0...v1.1.0) (2026-09-19)
+
+
+### Features
+
+* **deps:** take mcp-utils 1.0.0 so the server boots through serveStdio ([#53](https://github.com/chrischall/simplepractice-mcp/issues/53)) ([a939a02](https://github.com/chrischall/simplepractice-mcp/commit/a939a027473f3e525d9386f0ce14cc5c4feed9fd))
+
+
+### Performance
+
+* **bundle:** drop the zod/v4 esbuild alias, halving dist/bundle.js ([#51](https://github.com/chrischall/simplepractice-mcp/issues/51)) ([334e2fb](https://github.com/chrischall/simplepractice-mcp/commit/334e2fb2de500a117ca2a75f494e7ff35ab2a6f3))
+
 ## [1.0.0](https://github.com/chrischall/simplepractice-mcp/compare/v0.4.2...v1.0.0) (2026-09-19)
 
 
