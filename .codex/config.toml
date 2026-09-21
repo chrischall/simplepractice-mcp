@@ -1,0 +1,7 @@
+[mcp_servers.simplepractice]
+command = "npx"
+args = [
+    "-y",
+    "simplepractice-mcp",
+]
+env_vars = ["SIMPLEPRACTICE_PRACTICE"]
