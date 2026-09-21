@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.0...v1.1.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **tools:** say which writes are destructive ([#54](https://github.com/chrischall/simplepractice-mcp/issues/54)) ([c6fe0ae](https://github.com/chrischall/simplepractice-mcp/commit/c6fe0aeed81878d9efbd803e3ca644e9a7b94c26))
+
 ## [1.1.0](https://github.com/chrischall/simplepractice-mcp/compare/v1.0.0...v1.1.0) (2026-09-19)
 
 
