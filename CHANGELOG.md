@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.1...v1.1.2) (2026-09-21)
+
+
+### Bug Fixes
+
+* **deps:** bump dotenv from 17.4.2 to 18.0.0 ([#59](https://github.com/chrischall/simplepractice-mcp/issues/59)) ([e3450d2](https://github.com/chrischall/simplepractice-mcp/commit/e3450d240a441b8e6e9ee13953ab90a043ffcac6))
+
 ## [1.1.1](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.0...v1.1.1) (2026-09-21)
 
 
