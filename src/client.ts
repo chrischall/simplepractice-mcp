@@ -58,20 +58,34 @@ export interface RequestOptions {
 export type PracticeSource = 'link' | 'environment' | 'session';
 
 export class SimplePracticeClient {
-  private readonly store: SessionStore<PortalSession>;
+  /**
+   * The session store, as it is on disk NOW.
+   *
+   * Another server process (Claude Desktop beside Claude Code) shares the
+   * session file, and `SessionStore` reads it only in its constructor, then
+   * rewrites the whole file from its in-memory Map on every add/remove. Held
+   * for the life of the process, that snapshot would write a session another
+   * process signed out of straight back to disk, or drop one it just created.
+   * So by default every access opens the store afresh; an injected store
+   * (tests) is used as given.
+   */
+  private readonly openStore: () => SessionStore<PortalSession>;
   private readonly fetchImpl: typeof fetch;
   /** A practice learned at runtime — from a sign-in link, or named on a tool call. */
   private adoptedHost: string | null = null;
 
   constructor(opts: { fetchImpl?: typeof fetch; store?: SessionStore<PortalSession> } = {}) {
     this.fetchImpl = opts.fetchImpl ?? globalThis.fetch;
-    this.store =
-      opts.store ??
-      new SessionStore<PortalSession>({
-        filePath: sessionFilePath(),
-        keyOf: (session) => session.host,
-        normalizeKey: (key) => key.toLowerCase(),
-      });
+    const injected = opts.store;
+    const filePath = sessionFilePath();
+    this.openStore = injected
+      ? () => injected
+      : () =>
+          new SessionStore<PortalSession>({
+            filePath,
+            keyOf: (session) => session.host,
+            normalizeKey: (key) => key.toLowerCase(),
+          });
   }
 
   /**
@@ -115,7 +129,7 @@ export class SimplePracticeClient {
    */
   private mostRecentSessionHost(): string | null {
     let newest: PortalSession | null = null;
-    for (const session of this.store.list()) {
+    for (const session of this.openStore().list()) {
       if (!newest || session.createdAt > newest.createdAt) newest = session;
     }
     return newest?.host ?? null;
@@ -204,13 +218,13 @@ export class SimplePracticeClient {
 
   getSession(): PortalSession | null {
     const host = this.knownPortalHost();
-    return host ? this.store.get(host) : null;
+    return host ? this.openStore().get(host) : null;
   }
 
   saveSession(cookie: string): PortalSession {
     const host = this.requireConfig();
     const session: PortalSession = { host, cookie, createdAt: new Date().toISOString() };
-    this.store.add(session);
+    this.openStore().add(session);
     return session;
   }
 
@@ -219,7 +233,7 @@ export class SimplePracticeClient {
     // Not knowing the practice is the same outcome as having no session for
     // it: nothing to sign out of. Throwing would make sign-out the one tool
     // that fails when it has nothing to do.
-    return host ? this.store.remove(host) : false;
+    return host ? this.openStore().remove(host) : false;
   }
 
   private requireSession(): PortalSession {

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { McpToolError } from '@chrischall/mcp-utils';
@@ -185,6 +185,57 @@ describe('where the practice host comes from', () => {
     delete process.env.SIMPLEPRACTICE_PRACTICE;
     const client = new SimplePracticeClient({ store: tempStore() });
     expect(client.clearSession()).toBe(false);
+  });
+});
+
+describe('sessions shared with another server process', () => {
+  // Claude Desktop and Claude Code each run their own server against the same
+  // session file. Each client below stands in for one of those processes.
+  const OTHER = 'otherpractice.clientsecure.me';
+
+  function twoProcesses() {
+    process.env.SIMPLEPRACTICE_SESSION_FILE = join(
+      mkdtempSync(join(tmpdir(), 'sp-shared-')),
+      'session.json'
+    );
+    return [new SimplePracticeClient(), new SimplePracticeClient()] as const;
+  }
+
+  function onDisk(): PortalSession[] {
+    return JSON.parse(readFileSync(process.env.SIMPLEPRACTICE_SESSION_FILE!, 'utf8'));
+  }
+
+  it('does not resurrect a session another process signed out of', () => {
+    const [one, two] = twoProcesses();
+    one.saveSession('simplepractice-session=A');
+    // Process two has seen the session, so any stale snapshot would hold it.
+    expect(two.getSession()?.cookie).toBe('simplepractice-session=A');
+
+    expect(one.clearSession()).toBe(true);
+    two.adoptPracticeHost(OTHER);
+    two.saveSession('simplepractice-session=B');
+
+    expect(onDisk().map((s) => s.host)).toEqual([OTHER]);
+  });
+
+  it('sees a sign-out made by another process', () => {
+    const [one, two] = twoProcesses();
+    one.saveSession('simplepractice-session=A');
+    expect(two.getSession()?.cookie).toBe('simplepractice-session=A');
+
+    one.clearSession();
+    expect(two.getSession()).toBeNull();
+  });
+
+  it('does not drop a session another process just created', () => {
+    const [one, two] = twoProcesses();
+    // Both processes load before either signs in.
+    expect(two.getSession()).toBeNull();
+    one.saveSession('simplepractice-session=A');
+    two.adoptPracticeHost(OTHER);
+    two.saveSession('simplepractice-session=B');
+
+    expect(onDisk().map((s) => s.host).sort()).toEqual([HOST, OTHER].sort());
   });
 });
 
