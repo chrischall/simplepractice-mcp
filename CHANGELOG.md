@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.4](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.3...v1.1.4) (2026-09-23)
+
+
+### Bug Fixes
+
+* **session:** stop a second server process resurrecting signed-out sessions ([#64](https://github.com/chrischall/simplepractice-mcp/issues/64)) ([613ec36](https://github.com/chrischall/simplepractice-mcp/commit/613ec363cf17a6d2bc7ce1b4352b84855fcfdbbb))
+
 ## [1.1.3](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.2...v1.1.3) (2026-09-23)
 
 
