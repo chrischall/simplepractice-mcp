@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.3](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.2...v1.1.3) (2026-09-23)
+
+
+### Bug Fixes
+
+* **deps:** require zod ^4.6.5 to match @chrischall/mcp-utils 2.4.0 ([#63](https://github.com/chrischall/simplepractice-mcp/issues/63)) ([d683ec5](https://github.com/chrischall/simplepractice-mcp/commit/d683ec5a51114839f173b986e74983e55c32d4d7))
+* **deps:** upgrade @chrischall/mcp-utils to 2.4.0 and @fetchproxy/* to 3.2.0 ([#61](https://github.com/chrischall/simplepractice-mcp/issues/61)) ([bb7fdf2](https://github.com/chrischall/simplepractice-mcp/commit/bb7fdf2f56a303074e4f0a45d052b865e9830c82))
+
 ## [1.1.2](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.1...v1.1.2) (2026-09-21)
 
 
