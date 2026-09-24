@@ -152,7 +152,7 @@ export class SimplePracticeClient {
    * through, so a link outside `*.clientsecure.me` cannot redirect a token.
    *
    * Separate from {@link adoptPracticeHost} so a caller that only wants to
-   * *name* the practice — a dry run reporting what it would do — can do that
+   * *name* the practice — a preview reporting what it would do — can do that
    * without the side effect. Answering a question should not move the server.
    */
   validatePracticeHost(raw: string): string {
