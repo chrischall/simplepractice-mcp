@@ -26,8 +26,8 @@ The portal has **no password**. SimplePractice emails a one-time link (or a
    the saved session.
 2. If the user already has the email, skip straight to step 4 — asking for a
    second link when one is in their inbox spends a rate limit for nothing.
-3. `simplepractice_request_sign_in_link` with the user's portal email. It is
-   asks for confirmation because it sends a real email and the endpoint is
+3. `simplepractice_request_sign_in_link` with the user's portal email. It asks
+   for confirmation because it sends a real email and the endpoint is
    rate-limited **per address and per IP** — a retry loop locks the user out of
    the only auth path there is. Where the client cannot show a prompt, the
    first call sends nothing and returns a preview plus a `confirmToken`: show
