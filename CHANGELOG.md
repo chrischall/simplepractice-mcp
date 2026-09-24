@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.0...v1.2.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **deps:** bump dotenv from 18.0.0 to 18.0.2 in the production-dependencies group ([#72](https://github.com/chrischall/simplepractice-mcp/issues/72)) ([0996b7c](https://github.com/chrischall/simplepractice-mcp/commit/0996b7cb7b9e66ac9819539ccf09ce0e2c63da15))
+
 ## [1.2.0](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.4...v1.2.0) (2026-09-24)
 
 
