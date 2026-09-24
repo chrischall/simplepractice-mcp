@@ -61,7 +61,7 @@
     },
     {
       "name": "simplepractice_request_sign_in_link",
-      "description": "Ask SimplePractice to email a Client Portal sign-in link. Confirm-gated; rate-limited upstream."
+      "description": "Ask SimplePractice to email a Client Portal sign-in link. Asks the user to confirm first (a prompt, or a preview plus confirmToken); rate-limited upstream."
     },
     {
       "name": "simplepractice_verify_sign_in_token",

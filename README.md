@@ -64,8 +64,10 @@ To have a fresh link sent rather than using one you already have, name the
 practice once:
 
 ```
-simplepractice_request_sign_in_link { email, practice: "achievebalancetherapy", confirm: true }
+simplepractice_request_sign_in_link { email, practice: "achievebalancetherapy" }
 ```
+
+Sending asks you to confirm first (see [Confirmations](#confirmations)).
 
 `practice` can be omitted whenever the server already knows the practice —
 from an earlier sign-in, or from `SIMPLEPRACTICE_PRACTICE`.
@@ -79,8 +81,8 @@ outside `*.clientsecure.me` is never adopted — the token is not sent there.
 Links are single-use — replaying one answers
 `401 "Authorization has already been used or expired"` — and last 24 hours. The
 request endpoint is rate-limited per address **and** per IP, which is why
-sending is confirm-gated: a retry loop locks you out of the only way in. There
-is no refresh token; when the session lapses, you sign in again.
+sending asks for confirmation first: a retry loop locks you out of the only way
+in. There is no refresh token; when the session lapses, you sign in again.
 
 The whole chain is verified end to end against a live portal — request, the
 emailed link, the exchange returning `verified` plus a session cookie, and an
@@ -88,6 +90,21 @@ authenticated read with that new session.
 
 Because that flow needs nothing but HTTP and your inbox, this server has no
 browser dependency and can run anywhere.
+
+## Confirmations
+
+`simplepractice_request_sign_in_link` sends a real email, so it asks you to
+confirm first. On a client that can show a confirmation prompt (Claude Code) you
+get the prompt. On one that cannot (claude.ai, Claude Desktop), the first call
+sends nothing and returns a preview — the address, the practice — plus a
+`confirmToken`; only a repeat call with that token, and the same arguments,
+sends. A token works once, and a changed address or practice is refused.
+
+| variable | default | |
+|---|---|---|
+| `MCP_CONFIRM_MODE` | `ask-user` | What a write does on a client that cannot show a confirmation prompt (claude.ai, Claude Desktop). `ask-user`: two steps — the first call does nothing and returns a preview plus a token, and the model must get your approval in chat before calling again with it. `auto`: the same two steps, but the model may use the token after reviewing the preview itself. `refuse`: writes are refused on such clients. A client that can show prompts (Claude Code) always gets the real prompt. An unrecognised value is treated as `refuse`. |
+| `MCP_CONFIRM_TTL_SECONDS` | `600` | How long a token stays valid. |
+| `MCP_CONFIRM_SECRET` | random per process | Signing key; set it only if tokens must survive a server restart. |
 
 ## Without the server
 

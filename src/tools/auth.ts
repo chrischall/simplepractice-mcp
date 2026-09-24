@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { minifiedResult, schemaConfirm, toolAnnotations } from '@chrischall/mcp-utils';
+import {
+  confirmationFromEnv,
+  confirmTokenParam,
+  minifiedResult,
+  requireConfirmationWithFallback,
+  toolAnnotations,
+} from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { SimplePracticeClient } from '../client.js';
 import { requestSignInLink, verifySignInPin, verifySignInToken } from '../auth.js';
@@ -8,7 +14,7 @@ import { requestSignInLink, verifySignInPin, verifySignInToken } from '../auth.j
  * No `view` here, deliberately.
  *
  * Nothing in this file answers with a SimplePractice record: every response is
- * a small object this server builds — local session state, a dry-run preview,
+ * a small object this server builds — local session state, a send preview,
  * the result of a sign-in exchange. There is no upstream payload to project or
  * strip, and none of these are reads a caller pages through, so the rung would
  * have nothing to switch between.
@@ -45,7 +51,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     'simplepractice_request_sign_in_link',
     {
       description:
-        'Ask SimplePractice to email a sign-in link to a Client Portal address. The portal has no password — this is how you sign in. Sends a real email and is rate-limited per email address AND per IP, so it requires confirm:true. A success does not prove the address has an account: the API answers identically for unknown addresses by design.',
+        'Ask SimplePractice to email a sign-in link to a Client Portal address. The portal has no password — this is how you sign in. Sends a real email and is rate-limited per email address AND per IP, so it asks the user to confirm first: a confirmation prompt where the client supports one; otherwise the first call returns a preview and a confirmToken, and only a repeat call with that token proceeds (see MCP_CONFIRM_MODE). A success does not prove the address has an account: the API answers identically for unknown addresses by design.',
       annotations: toolAnnotations({ readOnly: false, idempotent: false, destructive: true }),
       inputSchema: z.object({
         email: z.string().email().describe('The email address the Client Portal is registered to.'),
@@ -56,22 +62,39 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
           .describe(
             'The practice whose portal to sign in to — the slug ("achievebalancetherapy"), the host, or the portal URL. Only needed when this server does not know the practice yet; signing in with an emailed link teaches it, and it then remembers.'
           ),
-        confirm: schemaConfirm,
+        confirmToken: confirmTokenParam,
       }),
     },
-    async ({ email, practice, confirm }) => {
-      if (!confirm) {
-        return minifiedResult({
-          dryRun: true,
-          wouldSend: 'a Client Portal sign-in email',
-          to: email,
-          // Named, not adopted. A dry run sends nothing, so it must not move
-          // the server either — silently overriding a SIMPLEPRACTICE_PRACTICE
-          // pin is not something an inert preview gets to do.
-          practiceHost: practice ? client.validatePracticeHost(practice) : client.portalHost(),
-          note: 'Re-run with confirm:true to actually send it. Do not retry a failed send — SimplePractice locks out repeated sign-in requests.',
-        });
-      }
+    async ({ email, practice, confirmToken }, ctx) => {
+      // Resolved, not adopted. The preview sends nothing, so it must not move
+      // the server either — silently overriding a SIMPLEPRACTICE_PRACTICE pin
+      // is not something an inert preview gets to do. It still refuses a
+      // non-portal address or an unknown practice before anything is asked.
+      const practiceHost = practice ? client.validatePracticeHost(practice) : client.portalHost();
+      const gate = await requireConfirmationWithFallback(
+        ctx,
+        confirmationFromEnv({
+          action: 'sign_in.request_link',
+          message: 'Review and confirm sending this Client Portal sign-in email:',
+          details: { to: email, practiceHost },
+          tool: 'simplepractice_request_sign_in_link',
+          account: practiceHost,
+          confirmToken,
+          subject: () => ({
+            // Nothing existing is acted on: the address is bound through the payload,
+            // so editing it between the calls is a DRAFT_CHANGED with a fresh preview.
+            target: '',
+            payload: { email, practiceHost },
+            preview: {
+              wouldSend: 'a Client Portal sign-in email',
+              to: email,
+              practiceHost,
+              note: 'Do not retry a failed send — SimplePractice locks out repeated sign-in requests.',
+            },
+          }),
+        })
+      );
+      if (gate) return gate;
 
       const send = async () => {
         const { expiresIn } = await requestSignInLink(client, email);
