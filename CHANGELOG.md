@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.4...v1.2.0) (2026-09-24)
+
+
+### Features
+
+* confirm writes with a preview token instead of confirm: true ([#66](https://github.com/chrischall/simplepractice-mcp/issues/66)) ([2478a24](https://github.com/chrischall/simplepractice-mcp/commit/2478a24e5ed139ca3e1e1ca6c69cebf1d62bbc56))
+
+
+### Documentation
+
+* **skill:** fix the sign-in link step's broken sentence ([#69](https://github.com/chrischall/simplepractice-mcp/issues/69)) ([aa84c83](https://github.com/chrischall/simplepractice-mcp/commit/aa84c8311fb254877f695f48c4279f93440f45b9))
+
 ## [1.1.4](https://github.com/chrischall/simplepractice-mcp/compare/v1.1.3...v1.1.4) (2026-09-23)
 
 
