@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.1...v1.2.2) (2026-09-28)
+
+
+### Bug Fixes
+
+* **deps:** bump the production-dependencies group with 3 updates ([#76](https://github.com/chrischall/simplepractice-mcp/issues/76)) ([3fd7c8c](https://github.com/chrischall/simplepractice-mcp/commit/3fd7c8c58e4068a71dcfaff80caeaec7392052ed))
+
 ## [1.2.1](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.0...v1.2.1) (2026-09-24)
 
 
