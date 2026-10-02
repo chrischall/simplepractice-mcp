@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestHarness, parseToolResult } from '@chrischall/mcp-utils/test';
 import { SimplePracticeClient } from '../src/client.js';
+import { registerAccountTools } from '../src/tools/account.js';
 import { registerHealthcheckTools } from '../src/tools/health.js';
 import { tempStore } from './helpers.js';
 
@@ -72,6 +73,24 @@ describe('a CloudFront block reads as edge_blocked, not an expired session', () 
     expect(r.ok).toBe(false);
     expect(r.error?.kind).toBe('edge_blocked');
     expect(r.hint).not.toMatch(/sign in again/i);
+  });
+
+  it('on an ordinary tool call — the error names the CDN/WAF block, not an expired session', async () => {
+    const fetchImpl = (async () => blocked()) as unknown as typeof fetch;
+    const client = new SimplePracticeClient({ fetchImpl, store: tempStore() });
+    client.saveSession('simplepractice-session=abc123');
+    const h = await createTestHarness((server) => registerAccountTools(server, client));
+    try {
+      const res = await h.callTool('simplepractice_get_account', {});
+      expect(res.isError).toBe(true);
+      const text = JSON.stringify(res);
+      expect(text).toMatch(/blocked at its CDN\/WAF \(CloudFront\)/);
+      expect(text).toContain('GET /environment');
+      expect(text).not.toMatch(/portal session has expired/i);
+      expect(text).not.toMatch(/sign in again/i);
+    } finally {
+      await h.close?.();
+    }
   });
 
   it('control: a JSON:API 401 is still an expired session', async () => {
