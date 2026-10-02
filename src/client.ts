@@ -1,4 +1,10 @@
-import { McpToolError, messageOf, truncateErrorMessage } from '@chrischall/mcp-utils';
+import {
+  EdgeBlockedError,
+  McpToolError,
+  detectEdgeBlock,
+  messageOf,
+  truncateErrorMessage,
+} from '@chrischall/mcp-utils';
 import { SessionStore } from '@chrischall/mcp-utils/session';
 import {
   API_NAMESPACE,
@@ -298,7 +304,21 @@ export class SimplePracticeClient {
       document = null;
     }
 
-    if (!response.ok) this.throwForStatus(response.status, document, path);
+    if (!response.ok) {
+      // A CDN/WAF refusal page answers 403 like an expired session does, but
+      // the portal never saw the cookie: re-signing in will not help. Named
+      // before throwForStatus, whose 401/403 copy says exactly that
+      // (chrischall/mcp-host#1015).
+      const edge = detectEdgeBlock({ body: raw, headers: response.headers, status: response.status });
+      if (edge) {
+        throw new EdgeBlockedError(response.status, edge.vendor, {
+          service: host,
+          method: options.method ?? 'GET',
+          path,
+        });
+      }
+      this.throwForStatus(response.status, document, path);
+    }
     if (document === null) {
       // The portal's SPA catch-all answers 200 text/html for ANY path the API
       // does not define, so this is as often a wrong path as a dead session —
