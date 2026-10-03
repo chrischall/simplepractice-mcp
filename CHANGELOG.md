@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.3](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.2...v1.2.3) (2026-10-03)
+
+
+### Bug Fixes
+
+* **deps:** adopt @chrischall/mcp-utils 2.12.0 cross-process SessionStore ([#84](https://github.com/chrischall/simplepractice-mcp/issues/84)) ([ba20b94](https://github.com/chrischall/simplepractice-mcp/commit/ba20b94de57a02ce893c54592f2d872a10e1109a))
+* **deps:** bump @chrischall/mcp-utils to 2.10.0 ([#82](https://github.com/chrischall/simplepractice-mcp/issues/82)) ([5d443b2](https://github.com/chrischall/simplepractice-mcp/commit/5d443b2d8531a9a3314413f87d4746c82c2a5ed6))
+* **deps:** bump @chrischall/mcp-utils to 2.13.0 ([#85](https://github.com/chrischall/simplepractice-mcp/issues/85)) ([0ae40ea](https://github.com/chrischall/simplepractice-mcp/commit/0ae40ea16b1294876315f288652cc7d0d89fb6cf))
+* keep write approvals valid across a hosted restart (mcp-utils 2.11.0) ([#83](https://github.com/chrischall/simplepractice-mcp/issues/83)) ([c647b4b](https://github.com/chrischall/simplepractice-mcp/commit/c647b4bbd67c8d58437cb3141fa04986206ad96b))
+* report CDN/WAF blocks as edge_blocked, not a rejected credential (mcp-utils 2.9.0) ([#78](https://github.com/chrischall/simplepractice-mcp/issues/78)) ([9e1434c](https://github.com/chrischall/simplepractice-mcp/commit/9e1434c872e6d4083b15da377d35457ae97eaaf9))
+
 ## [1.2.2](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.1...v1.2.2) (2026-09-28)
 
 
