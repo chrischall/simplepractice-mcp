@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.4](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.3...v1.2.4) (2026-10-05)
+
+
+### Bug Fixes
+
+* **deps:** require @chrischall/mcp-utils 2.14.0 and MCP SDK 2.3.0 ([#86](https://github.com/chrischall/simplepractice-mcp/issues/86)) ([3dcb346](https://github.com/chrischall/simplepractice-mcp/commit/3dcb346aaa469895f804afb66a27bb005d3c47a9))
+
 ## [1.2.3](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.2...v1.2.3) (2026-10-03)
 
 
