@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.5](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.4...v1.2.5) (2026-10-07)
+
+
+### Bug Fixes
+
+* **deps:** bump dotenv from 18.0.3 to 18.0.5 in the production-dependencies group ([#90](https://github.com/chrischall/simplepractice-mcp/issues/90)) ([115b3fc](https://github.com/chrischall/simplepractice-mcp/commit/115b3fc3e8ac9ad0226028de440628d9322b8f1d))
+* **deps:** bump source-map-js from 1.2.1 to 1.2.2 in the security group across 1 directory ([#93](https://github.com/chrischall/simplepractice-mcp/issues/93)) ([9ea68d7](https://github.com/chrischall/simplepractice-mcp/commit/9ea68d7f09ae74f28c26c2952d7672b40ca1e97d))
+* **deps:** let clients that never show confirmation prompts disable elicitation via MCP_CONFIRM_ELICITATION=off ([#92](https://github.com/chrischall/simplepractice-mcp/issues/92)) ([e9fabab](https://github.com/chrischall/simplepractice-mcp/commit/e9fababeffee16ceaea56a29c1c4d6950b41797a))
+
+
+### Documentation
+
+* document MCP_CONFIRM_ELICITATION ([#94](https://github.com/chrischall/simplepractice-mcp/issues/94)) ([4652fbe](https://github.com/chrischall/simplepractice-mcp/commit/4652fbed9e2bdab8acbf37b03d55765278297607))
+
 ## [1.2.4](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.3...v1.2.4) (2026-10-05)
 
 
