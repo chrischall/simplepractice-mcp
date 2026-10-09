@@ -50,6 +50,12 @@ without its link.
 There is no refresh token. When a session lapses the tools say to sign in
 again; that means another email.
 
+`simplepractice_sign_out` only forgets the session stored on this machine. It
+does not revoke it: SimplePractice is never told, so the session token stays
+valid on SimplePractice's side until it expires there, and it does not sign the
+Client Portal out anywhere else. Do not tell the user they are "signed out of
+SimplePractice" — say the server forgot its session.
+
 ## Reading
 
 - `simplepractice_get_account` — the practice, the current client, and the
