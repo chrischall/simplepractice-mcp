@@ -11,6 +11,14 @@ import type { SimplePracticeClient } from '../client.js';
 import { requestSignInLink, verifySignInPin, verifySignInToken } from '../auth.js';
 
 /**
+ * Sign-out is local only (chrischall/fleet-audit#712). The portal's session
+ * lifetime is SimplePractice's to set and this server does not know it — the
+ * 24-hour figure elsewhere is the sign-in LINK's lifetime, not the session's.
+ */
+const SIGN_OUT_NOTE =
+  "Forgot the session stored on this machine. SimplePractice was not told, so the session token stays valid on SimplePractice's side until it expires there. This does not sign the Client Portal out anywhere else.";
+
+/**
  * No `view` here, deliberately.
  *
  * Nothing in this file answers with a SimplePractice record: every response is
@@ -146,10 +154,23 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
   server.registerTool(
     'simplepractice_sign_out',
     {
-      description: 'Discard the stored Client Portal session from local state.',
+      description:
+        "Forget the Client Portal session stored on this machine, so this server stops using it. It does NOT revoke the session: SimplePractice is never told, so the session token stays valid on SimplePractice's side until it expires there, and any copy of it keeps working until then. It does not sign the Client Portal out anywhere else (a browser, the app, another copy of this server). Makes no network call; signing in again undoes it.",
+      // Destructive: false is the fleet's recoverability line — the inverse is
+      // signing in again (simplepractice_verify_sign_in_token / _pin), and the
+      // only thing touched is this machine's session file.
       annotations: toolAnnotations({ readOnly: false, idempotent: true, destructive: false }),
       inputSchema: z.object({}),
     },
-    async () => minifiedResult({ signedOut: client.clearSession() })
+    async () => {
+      const signedOut = client.clearSession();
+      return minifiedResult({
+        signedOut,
+        scope: 'local',
+        note: signedOut
+          ? SIGN_OUT_NOTE
+          : 'No session was stored on this machine for this practice, so there was nothing to forget.',
+      });
+    }
   );
 }

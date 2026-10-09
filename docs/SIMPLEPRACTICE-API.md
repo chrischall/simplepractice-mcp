@@ -80,6 +80,12 @@ link → `POST /sessions/token` returning `data.meta.status: "verified"` and a
 with that freshly minted session. Replaying the same token then failed as
 above, confirming single use.
 
+**Sign-out is local only.** No logout endpoint has been identified or called:
+`simplepractice_sign_out` deletes this server's `session.json` entry and makes
+no network call, so the `simplepractice-session` cookie stays valid on
+SimplePractice's side until the portal expires it. Its lifetime is unmeasured —
+the 24 hours documented for sign-in links is the token's, not the session's.
+
 ## Endpoints confirmed live
 
 | Path | Notes |

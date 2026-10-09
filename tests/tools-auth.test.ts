@@ -302,6 +302,46 @@ describe('session status and sign out', () => {
     await harness.close();
   });
 
+  // chrischall/fleet-audit#712: sign-out only deletes the local session.json
+  // entry. The cookie is never revoked with SimplePractice, so any copy of it
+  // stays valid until the portal expires it. The tool must say so rather than
+  // let "sign out" be read as revocation.
+  it('describes sign-out as forgetting the local session, not revoking it', async () => {
+    const { harness } = await harnessFor([]);
+    const tool = (await harness.listTools()).find((t) => t.name === 'simplepractice_sign_out');
+    expect(tool?.description).toMatch(/stored on this machine/i);
+    expect(tool?.description).toMatch(/stays valid on SimplePractice's side until it expires/i);
+    expect(tool?.description).toMatch(/does not sign the Client Portal out anywhere else/i);
+    await harness.close();
+
+    // The harness does not surface annotations, so read them off the
+    // registration. The inverse is signing in again, and only local state
+    // changes: a recoverable, repeatable write.
+    const configs = new Map<string, { annotations?: unknown }>();
+    const recorder = {
+      registerTool: (name: string, config: { annotations?: unknown }) => configs.set(name, config),
+    };
+    registerAuthTools(recorder as never, makeClient([]).client);
+    expect(configs.get('simplepractice_sign_out')?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    });
+  });
+
+  it('says in the result that the server-side session remains valid', async () => {
+    const { harness, client, calls } = await harnessFor([]);
+    client.saveSession('simplepractice-session=S');
+    const out = parseToolResult<any>(await harness.callTool('simplepractice_sign_out'));
+    expect(out.signedOut).toBe(true);
+    expect(out.scope).toBe('local');
+    expect(out.note).toMatch(/forgot the session stored on this machine/i);
+    expect(out.note).toMatch(/stays valid on SimplePractice's side until it expires/i);
+    expect(out.note).toMatch(/does not sign the Client Portal out anywhere else/i);
+    expect(calls).toHaveLength(0);
+    await harness.close();
+  });
+
   it('signs out without a practice rather than failing', async () => {
     delete process.env.SIMPLEPRACTICE_PRACTICE;
     const { harness } = await harnessFor([]);

@@ -84,6 +84,14 @@ request endpoint is rate-limited per address **and** per IP, which is why
 sending asks for confirmation first: a retry loop locks you out of the only way
 in. There is no refresh token; when the session lapses, you sign in again.
 
+`simplepractice_sign_out` only **forgets the session stored on this machine**
+(its entry in `session.json`). SimplePractice is never told, so the session
+token stays valid on SimplePractice's side until it expires there — any copy of
+it (a backup of `~/.simplepractice-mcp`, another running copy of this server)
+keeps working until then. How long that is is SimplePractice's to decide; the
+24 hours above is the sign-in link's lifetime, not the session's. It does not
+sign the Client Portal out anywhere else, such as a browser or the app.
+
 The whole chain is verified end to end against a live portal — request, the
 emailed link, the exchange returning `verified` plus a session cookie, and an
 authenticated read with that new session.

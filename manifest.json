@@ -73,7 +73,7 @@
     },
     {
       "name": "simplepractice_sign_out",
-      "description": "Discard the stored Client Portal session."
+      "description": "Forget the Client Portal session stored on this machine. Does not revoke it: it stays valid on SimplePractice's side until it expires."
     },
     {
       "name": "simplepractice_get_account",
