@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { McpToolError } from '@chrischall/mcp-utils';
 import { _extractToken, requestSignInLink, verifySignInPin, verifySignInToken } from '../src/auth.js';
-import { makeClient, HOST } from './helpers.js';
+import { SimplePracticeClient } from '../src/client.js';
+import { makeClient, tempStore, HOST } from './helpers.js';
 
 const saved = { ...process.env };
 beforeEach(() => {
@@ -242,6 +243,96 @@ describe('the practice the sign-in link names', () => {
       verifySignInToken(client, `https://third.clientsecure.me/sign-in/token#bad`)
     ).rejects.toThrow(/nope/);
     expect(client.portalHost()).toBe(OTHER);
+  });
+
+  describe('concurrent tool calls (fleet-audit#709)', () => {
+    const THIRD = 'third.clientsecure.me';
+
+    /**
+     * A fetch whose sign-in POSTs to each practice host wait until released,
+     * and whose reads answer at once — so one call can be held mid-exchange
+     * while another runs.
+     */
+    function heldFetch() {
+      const releases = new Map<string, (r: { ok: boolean }) => void>();
+      const urls: string[] = [];
+      const fetchImpl = (async (url: string) => {
+        urls.push(url);
+        const host = new URL(url).host;
+        const respond = (ok: boolean) =>
+          ({
+            ok,
+            status: ok ? 200 : 401,
+            headers: (() => {
+              const h = new Headers();
+              if (ok) h.append('set-cookie', `simplepractice-session=${host}`);
+              return h;
+            })(),
+            text: async () =>
+              ok
+                ? JSON.stringify({ data: { meta: { status: 'verified' } } })
+                : JSON.stringify({ errors: [{ title: `rejected at ${host}` }] }),
+          }) as unknown as Response;
+        if (!url.includes('/sessions/')) return respond(true);
+        const { ok } = await new Promise<{ ok: boolean }>((resolve) => releases.set(host, resolve));
+        return respond(ok);
+      }) as unknown as typeof fetch;
+      const release = async (host: string, ok: boolean) => {
+        while (!releases.has(host)) await new Promise((r) => setTimeout(r, 1));
+        releases.get(host)!({ ok });
+      };
+      return { fetchImpl, urls, release };
+    }
+
+    it('does not point concurrent reads at a practice whose sign-in is still in flight', async () => {
+      const { fetchImpl, urls, release } = heldFetch();
+      const client = new SimplePracticeClient({ fetchImpl, store: tempStore() });
+      client.saveSession('simplepractice-session=MINE');
+
+      const signingIn = verifySignInToken(client, `https://${OTHER}/sign-in/token#tok`);
+      // While the exchange for OTHER is pending, this server is still HOST's.
+      expect(client.portalHost()).toBe(HOST);
+      await client.list('/appointments');
+      expect(urls.at(-1)).toBe(`https://${HOST}/client-portal-api/appointments`);
+
+      await release(OTHER, true);
+      await signingIn;
+      expect(client.portalHost()).toBe(OTHER);
+    });
+
+    it('a failing sign-in does not undo a concurrent one that succeeded', async () => {
+      // The environment names HOST, so a stale rollback to "nothing adopted"
+      // would visibly land there rather than on THIRD.
+      const { fetchImpl, release } = heldFetch();
+      const client = new SimplePracticeClient({ fetchImpl, store: tempStore() });
+
+      const x = verifySignInToken(client, `https://${OTHER}/sign-in/token#x`);
+      const y = verifySignInToken(client, `https://${THIRD}/sign-in/token#y`);
+      await release(THIRD, true);
+      await y;
+      await release(OTHER, false);
+      await expect(x).rejects.toThrow(/rejected at/);
+
+      expect(client.portalHost()).toBe(THIRD);
+      expect(client.getSession()?.cookie).toBe(`simplepractice-session=${THIRD}`);
+    });
+
+    it('a late success does not override a practice adopted after it began', async () => {
+      delete process.env.SIMPLEPRACTICE_PRACTICE;
+      const { fetchImpl, release } = heldFetch();
+      const client = new SimplePracticeClient({ fetchImpl, store: tempStore() });
+
+      const x = verifySignInToken(client, `https://${OTHER}/sign-in/token#x`);
+      const y = verifySignInToken(client, `https://${THIRD}/sign-in/token#y`);
+      await release(THIRD, true);
+      await y;
+      await release(OTHER, true);
+      await expect(x).resolves.toMatchObject({ practiceHost: OTHER });
+
+      // X's session is stored under OTHER, but the practice in play stays the
+      // one the user switched to most recently.
+      expect(client.portalHost()).toBe(THIRD);
+    });
   });
 
   it('signs a PIN in to the remembered practice, since a PIN names none', async () => {

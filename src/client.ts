@@ -68,6 +68,12 @@ export interface RequestOptions {
   body?: unknown;
   /** Auth calls are the only ones allowed to run without a stored session. */
   anonymous?: boolean;
+  /**
+   * Send to this (already validated) practice host rather than the one in
+   * play — how a sign-in exchange targets the practice in its link without
+   * moving the whole server there while it is in flight.
+   */
+  host?: string;
 }
 
 /** Where the practice host in play was learned from. */
@@ -202,7 +208,7 @@ export class SimplePracticeClient {
   }
 
   /**
-   * Adopt `raw`'s practice for the duration of `fn`, and keep it only if `fn`
+   * Run `fn` against `raw`'s practice, and adopt that practice only once `fn`
    * succeeds.
    *
    * Sign-in links are single-use, so a failed exchange is the ordinary case,
@@ -210,16 +216,20 @@ export class SimplePracticeClient {
    * pasted a stale link for practice B pointed at B for the life of the
    * process — and their intact session for practice A would report "Not signed
    * in" until a restart. A link only earns the practice by working.
+   *
+   * The host is handed to `fn` rather than adopted up front: tool calls run
+   * concurrently, so adopting before the await would point every other call
+   * at B while B's exchange is still in flight, and restoring on failure
+   * could wipe an adoption a concurrent call had just earned
+   * (fleet-audit#709). It is committed afterwards only if nothing else
+   * adopted a practice in the meantime — the most recent switch stands.
    */
-  async withPracticeHost<T>(raw: string, fn: () => Promise<T>): Promise<T> {
-    const previous = this.adoptedHost;
-    this.adoptPracticeHost(raw);
-    try {
-      return await fn();
-    } catch (err) {
-      this.adoptedHost = previous;
-      throw err;
-    }
+  async withPracticeHost<T>(raw: string, fn: (host: string) => Promise<T>): Promise<T> {
+    const host = this.validatePracticeHost(raw);
+    const before = this.adoptedHost;
+    const result = await fn(host);
+    if (this.adoptedHost === before) this.adoptedHost = host;
+    return result;
   }
 
   /**
@@ -243,13 +253,12 @@ export class SimplePracticeClient {
     return this.requireConfig();
   }
 
-  getSession(): PortalSession | null {
-    const host = this.knownPortalHost();
+  getSession(host: string | null = this.knownPortalHost()): PortalSession | null {
     return host ? this.store.get(host) : null;
   }
 
-  saveSession(cookie: string): PortalSession {
-    const host = this.requireConfig();
+  /** Store a session for `host`, or for the practice in play when omitted. */
+  saveSession(cookie: string, host: string = this.requireConfig()): PortalSession {
     const session: PortalSession = { host, cookie, createdAt: new Date().toISOString() };
     this.store.add(session);
     return session;
@@ -263,8 +272,8 @@ export class SimplePracticeClient {
     return host ? this.store.remove(host) : false;
   }
 
-  private requireSession(): PortalSession {
-    const session = this.getSession();
+  private requireSession(host: string): PortalSession {
+    const session = this.getSession(host);
     if (!session) {
       // McpToolError rather than SessionNotAuthenticatedError: that subclass's
       // constructor is (service, signInHost) and composes its own message, and
@@ -295,8 +304,8 @@ export class SimplePracticeClient {
     document: JsonApiDocument;
     setCookie: string[];
   }> {
-    const host = this.requireConfig();
-    const session = options.anonymous ? null : this.requireSession();
+    const host = options.host ?? this.requireConfig();
+    const session = options.anonymous ? null : this.requireSession(host);
     const query = options.query ? buildQuery(options.query) : '';
     const url = `https://${host}/${API_NAMESPACE}${path}${query ? `?${query}` : ''}`;
 

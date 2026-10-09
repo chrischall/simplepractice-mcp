@@ -23,11 +23,13 @@ export interface VerifyResult {
  */
 export async function requestSignInLink(
   client: SimplePracticeClient,
-  email: string
+  email: string,
+  host?: string
 ): Promise<{ expiresIn: string }> {
   const { document } = await client.request('/sign-in-tokens', {
     method: 'POST',
     anonymous: true,
+    host,
     body: {
       data: { type: 'sign-in-tokens', attributes: { email, expiresIn: '15 minutes' } },
     },
@@ -62,12 +64,14 @@ function extractToken(raw: string): string {
 
 async function establishSession(
   client: SimplePracticeClient,
-  attributes: Record<string, string>
+  attributes: Record<string, string>,
+  host?: string
 ): Promise<VerifyResult> {
   const path = `/sessions/${attributes.type}`;
   const { document, setCookie } = await client.request(path, {
     method: 'POST',
     anonymous: true,
+    host,
     body: { data: { type: 'sessions', attributes } },
   });
 
@@ -92,7 +96,7 @@ async function establishSession(
     });
   }
 
-  const session = client.saveSession(`${SESSION_COOKIE}=${cookie}`);
+  const session = client.saveSession(`${SESSION_COOKIE}=${cookie}`, host);
   return { status, signedIn: true, practiceHost: session.host };
 }
 
@@ -121,7 +125,7 @@ export async function verifySignInToken(
   // Scoped, so a link that fails to verify does not leave the process pointed
   // at its practice — links are single-use, so failing is the ordinary case.
   if (fromLink) {
-    return client.withPracticeHost(fromLink, () => establishSession(client, attributes));
+    return client.withPracticeHost(fromLink, (host) => establishSession(client, attributes, host));
   }
   // No practice in the link, so it has to be known already: resolve before
   // posting, or a single-use token is spent against a guess.

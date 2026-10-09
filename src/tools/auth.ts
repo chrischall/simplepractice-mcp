@@ -96,12 +96,12 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       );
       if (gate) return gate;
 
-      const send = async () => {
-        const { expiresIn } = await requestSignInLink(client, email);
+      const send = async (host: string) => {
+        const { expiresIn } = await requestSignInLink(client, email, host);
         return minifiedResult({
           sent: true,
           to: email,
-          practiceHost: client.portalHost(),
+          practiceHost: host,
           expiresIn,
           next: 'Open the email, copy the sign-in link (or just the part after the "#"), and pass it to simplepractice_verify_sign_in_token.',
           note: 'This response is the same whether or not the address has an account.',
@@ -109,7 +109,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       };
       // Scoped exactly as the sign-in exchange is: the practice sticks only if
       // the send works, so a rejected send leaves the previous one standing.
-      return practice ? client.withPracticeHost(practice, send) : send();
+      return practice ? client.withPracticeHost(practice, send) : send(practiceHost);
     }
   );
 
