@@ -73,7 +73,8 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
         confirmToken: confirmTokenParam,
       }),
     },
-    async ({ email, practice, confirmToken }, ctx) => {
+    async (args, ctx) => {
+      const { email, practice, confirmToken } = args;
       // Resolved, not adopted. The preview sends nothing, so it must not move
       // the server either — silently overriding a SIMPLEPRACTICE_PRACTICE pin
       // is not something an inert preview gets to do. It still refuses a
@@ -87,6 +88,9 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
           details: { to: email, practiceHost },
           tool: 'simplepractice_request_sign_in_link',
           account: practiceHost,
+          // Binds the token and any elicitation acceptance to these exact
+          // arguments (mcp-utils 3.0), not just to the subject's payload.
+          args,
           confirmToken,
           subject: () => ({
             // Nothing existing is acted on: the address is bound through the payload,

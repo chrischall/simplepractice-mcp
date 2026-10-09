@@ -108,6 +108,22 @@ describe('simplepractice_request_sign_in_link', () => {
     await harness.close();
   });
 
+  it('refuses a token replayed with different arguments, even ones naming the same practice', async () => {
+    // The token binds the call's arguments, not only the resolved payload, so
+    // adding `practice` on phase 2 is a different call even though it resolves
+    // to the host SIMPLEPRACTICE_PRACTICE already pins.
+    const { harness, calls } = await harnessFor([SENT]);
+    const preview = parseToolResult<any>(await harness.callTool(SEND, { email: 'a@example.com' }));
+    const result = await harness.callTool(SEND, {
+      email: 'a@example.com',
+      practice: 'achievebalancetherapy',
+      confirmToken: preview.confirmToken,
+    });
+    expect(result.isError).toBe(true);
+    expect(calls).toHaveLength(0);
+    await harness.close();
+  });
+
   it('sends when a client that can prompt gets the user to accept', async () => {
     const { harness, calls } = await harnessFor([SENT], async () => ({
       action: 'accept',
