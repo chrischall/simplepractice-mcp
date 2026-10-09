@@ -47,7 +47,7 @@ Always branch on `content-type`, never on status.
 
 | Call | Body | Result |
 |---|---|---|
-| `POST /sign-in-tokens` | `{data:{type:'sign-in-tokens',attributes:{email,expiresIn}}}` | `202`, emails a link. Confirmed live. |
+| `POST /sign-in-tokens` | `{data:{type:'sign-in-tokens',attributes:{email}}}` | `202`, emails a link. Confirmed live with an `expiresIn` attribute too, which the portal ignored: it issued a 24-hour link whatever was asked, so the server no longer sends one. The response's `expiresIn` is the lifetime actually issued, and the hints quote it (fleet-audit#895). |
 | `POST /sessions/token` | `{data:{type:'sessions',attributes:{type:'token',token}}}` | sets `simplepractice-session`; `data.meta.status` ∈ `verified`/`expired`/`merged` |
 | `POST /sessions/pin` | `{data:{type:'sessions',attributes:{type:'pin',email,pin}}}` | same; PIN is `^\d{6}$` |
 

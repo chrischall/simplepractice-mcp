@@ -79,6 +79,13 @@ export interface RequestOptions {
 /** Where the practice host in play was learned from. */
 export type PracticeSource = 'link' | 'environment' | 'session';
 
+/**
+ * The sign-in link lifetime SimplePractice has always reported (a link sent
+ * from the portal, and every 202 from POST /sign-in-tokens observed live). Used
+ * only until the API reports one of its own.
+ */
+export const DEFAULT_SIGN_IN_LINK_LIFETIME = '24 hours';
+
 export class SimplePracticeClient {
   /**
    * The session store, as it is on disk NOW.
@@ -96,6 +103,12 @@ export class SimplePracticeClient {
   private readonly requestTimeoutMs: number;
   /** A practice learned at runtime — from a sign-in link, or named on a tool call. */
   private adoptedHost: string | null = null;
+  /**
+   * How long a sign-in link lasts, as SimplePractice last said in answer to a
+   * link request (fleet-audit#895). Hints quote this rather than a constant, so
+   * if the portal ever changes the lifetime they change with it.
+   */
+  signInLinkLifetime: string = DEFAULT_SIGN_IN_LINK_LIFETIME;
 
   constructor(
     opts: {
@@ -408,7 +421,7 @@ export class SimplePracticeClient {
     if (status === 401 || status === 403) {
       throw new McpToolError(message, {
         hint: isSignIn
-          ? 'Sign-in links and PINs are single-use and last 24 hours. Request a fresh one with simplepractice_request_sign_in_link.'
+          ? `Sign-in links and PINs are single-use and last ${this.signInLinkLifetime}. Request a fresh one with simplepractice_request_sign_in_link.`
           : 'The portal session has expired — there is no refresh token, so sign in again with simplepractice_request_sign_in_link.',
       });
     }
