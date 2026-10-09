@@ -162,7 +162,12 @@ export class SimplePracticeClient {
   validatePracticeHost(raw: string): string {
     const host = resolvePortalHost(raw);
     if (!host) {
-      throw new McpToolError(`"${raw}" is not a SimplePractice Client Portal address.`, {
+      // Echo only what precedes any "#": the emailed apex-variant link
+      // (clientsecure.me/…/sign-in/token#<TOKEN>) names no practice, and its
+      // fragment is a live, unredeemed sign-in token that must never reach a
+      // transcript or host log (fleet-audit#711).
+      const shown = raw.split('#')[0];
+      throw new McpToolError(`"${shown}" is not a SimplePractice Client Portal address.`, {
         hint: 'A portal address is a single practice under clientsecure.me — the slug ("achievebalancetherapy") or the whole host ("achievebalancetherapy.clientsecure.me").',
       });
     }

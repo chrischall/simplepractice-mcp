@@ -173,6 +173,25 @@ describe('where the practice host comes from', () => {
     expect(client.portalHost()).toBe(HOST);
   });
 
+  it('never echoes a sign-in token from a rejected practice address', () => {
+    // The apex-variant emailed link resolves to no practice; its fragment is
+    // a live, unredeemed 24-hour token that must not land in a tool error
+    // (fleet-audit#711).
+    const { client } = makeClient();
+    const link = 'https://clientsecure.me/client-portal-api/sign-in/token#SECRET-TOKEN-123';
+    const err = (() => {
+      try {
+        client.validatePracticeHost(link);
+      } catch (e) {
+        return e as McpToolError;
+      }
+      throw new Error('expected a rejection');
+    })();
+    expect(err).toBeInstanceOf(McpToolError);
+    expect(`${err.message}\n${err.hint ?? ''}`).not.toContain('SECRET-TOKEN-123');
+    expect(err.message).toContain('https://clientsecure.me/client-portal-api/sign-in/token');
+  });
+
   it('saves the session under the adopted practice, not the configured one', () => {
     const { client, store } = makeClient();
     client.adoptPracticeHost(OTHER);
