@@ -33,7 +33,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     {
       description:
         'Report whether this server holds a Client Portal session, for which practice, and how that practice was determined (from a sign-in link, from SIMPLEPRACTICE_PRACTICE, or remembered from the stored session). Reads local state only — makes no network call.',
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: false }),
       inputSchema: z.object({}),
     },
     async () => {
@@ -60,7 +60,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     {
       description:
         'Ask SimplePractice to email a sign-in link to a Client Portal address. The portal has no password — this is how you sign in. Sends a real email and is rate-limited per email address AND per IP, so it asks the user to confirm first: a confirmation prompt where the client supports one (unless MCP_CONFIRM_ELICITATION=off); otherwise the first call returns a preview and a confirmToken, and only a repeat call with that token proceeds (see MCP_CONFIRM_MODE). A success does not prove the address has an account: the API answers identically for unknown addresses by design.',
-      annotations: toolAnnotations({ readOnly: false, idempotent: false, destructive: true }),
+      annotations: toolAnnotations({ readOnly: false, idempotent: false, destructive: true, openWorld: true }),
       inputSchema: z.object({
         email: z.string().email().describe('The email address the Client Portal is registered to.'),
         practice: z
@@ -130,7 +130,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     {
       description:
         'Exchange an emailed sign-in link (or the token in it) for a Client Portal session. Accepts the whole link or just the part after the "#". Prefer passing the WHOLE link: its address names the practice, so no practice has to be configured, and this server remembers it afterwards. Tokens are single-use and last 24 hours.',
-      annotations: toolAnnotations({ readOnly: false, idempotent: false, destructive: true }),
+      annotations: toolAnnotations({ readOnly: false, idempotent: false, destructive: true, openWorld: true }),
       inputSchema: z.object({
         link: z
           .string()
@@ -146,7 +146,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     {
       description:
         'Exchange a 6-digit Client Portal sign-in PIN for a session, for practices that email a code instead of a link. Single-use.',
-      annotations: toolAnnotations({ readOnly: false, idempotent: false, destructive: true }),
+      annotations: toolAnnotations({ readOnly: false, idempotent: false, destructive: true, openWorld: true }),
       inputSchema: z.object({
         email: z.string().email().describe('The address the PIN was sent to.'),
         pin: z.string().regex(/^\d{6}$/, 'The PIN is exactly 6 digits.'),
@@ -163,7 +163,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
       // Destructive: false is the fleet's recoverability line — the inverse is
       // signing in again (simplepractice_verify_sign_in_token / _pin), and the
       // only thing touched is this machine's session file.
-      annotations: toolAnnotations({ readOnly: false, idempotent: true, destructive: false }),
+      annotations: toolAnnotations({ readOnly: false, idempotent: true, destructive: false, openWorld: false }),
       inputSchema: z.object({}),
     },
     async () => {

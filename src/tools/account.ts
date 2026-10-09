@@ -20,7 +20,7 @@ export function registerAccountTools(server: McpServer, client: SimplePracticeCl
     {
       description:
         'The practice, the signed-in client, and every client this login can see. One portal login is a "client access" and may cover more than one client — a parent seeing two children, say — so clients is always a list.',
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: true }),
       inputSchema: z.object({}),
     },
     async () => {

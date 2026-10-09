@@ -44,7 +44,7 @@ export function registerBillingTools(server: McpServer, client: SimplePracticeCl
     {
       description:
         'Invoices, statements, superbills, receipts, or account history from the Client Portal. An empty list is a real answer — many practices bill entirely outside the portal. Pages by cursor: pass the returned nextCursor as "before".',
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: true }),
       inputSchema: z.object({
         kind: z
           .enum(['invoice', 'statement', 'superbill', 'receipt', 'account-history'])
@@ -89,7 +89,7 @@ export function registerBillingTools(server: McpServer, client: SimplePracticeCl
     {
       description:
         'Balance due and per-category counts for the Client Portal account. Cheaper than paging the billing collections just to find out whether anything is there.',
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: true }),
       inputSchema: z.object({ view: viewArg() }),
     },
     async ({ view }) => {
@@ -107,7 +107,7 @@ export function registerBillingTools(server: McpServer, client: SimplePracticeCl
     {
       description:
         'Payment methods saved to the Client Portal — brand, last four digits, and expiry. No full card numbers.',
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: true }),
       inputSchema: z.object({}),
     },
     // No `view`: the response below IS a projection, hand-written down to five

@@ -32,7 +32,7 @@ export function registerAppointmentTools(server: McpServer, client: SimplePracti
     {
       description:
         'Appointments from the Client Portal. status "scheduled" returns confirmed/upcoming ones; "requested" returns those still awaiting the practice\'s confirmation. Pages by number.',
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: true }),
       inputSchema: z.object({
         status: z
           .enum(['scheduled', 'requested'])
