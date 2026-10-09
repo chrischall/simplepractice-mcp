@@ -1,9 +1,11 @@
 import {
   EdgeBlockedError,
   McpToolError,
+  currentCallSignal,
   detectEdgeBlock,
   messageOf,
   truncateErrorMessage,
+  withAmbientCancellation,
 } from '@chrischall/mcp-utils';
 import { SessionStore } from '@chrischall/mcp-utils/session';
 import {
@@ -28,6 +30,14 @@ export interface PortalSession extends Record<string, unknown> {
 }
 
 const JSON_API_MEDIA_TYPE = 'application/vnd.api+json';
+
+/**
+ * How long one portal request may take, end to end, before it is abandoned.
+ * The portal sits behind a WAF and an SPA catch-all, so a stall is a real
+ * failure mode — without a deadline the tool call hangs until the host gives
+ * up (fleet-audit#707).
+ */
+export const REQUEST_TIMEOUT_MS = 30_000;
 
 /** Which query strings the portal builds as nested `filter[a][b]=` pairs. */
 export type QueryValue =
@@ -58,6 +68,12 @@ export interface RequestOptions {
   body?: unknown;
   /** Auth calls are the only ones allowed to run without a stored session. */
   anonymous?: boolean;
+  /**
+   * Send to this (already validated) practice host rather than the one in
+   * play — how a sign-in exchange targets the practice in its link without
+   * moving the whole server there while it is in flight.
+   */
+  host?: string;
 }
 
 /** Where the practice host in play was learned from. */
@@ -77,11 +93,19 @@ export class SimplePracticeClient {
    */
   private readonly store: SessionStore<PortalSession>;
   private readonly fetchImpl: typeof fetch;
+  private readonly requestTimeoutMs: number;
   /** A practice learned at runtime — from a sign-in link, or named on a tool call. */
   private adoptedHost: string | null = null;
 
-  constructor(opts: { fetchImpl?: typeof fetch; store?: SessionStore<PortalSession> } = {}) {
+  constructor(
+    opts: {
+      fetchImpl?: typeof fetch;
+      store?: SessionStore<PortalSession>;
+      requestTimeoutMs?: number;
+    } = {}
+  ) {
     this.fetchImpl = opts.fetchImpl ?? globalThis.fetch;
+    this.requestTimeoutMs = opts.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
     this.store =
       opts.store ??
       new SessionStore<PortalSession>({
@@ -162,7 +186,12 @@ export class SimplePracticeClient {
   validatePracticeHost(raw: string): string {
     const host = resolvePortalHost(raw);
     if (!host) {
-      throw new McpToolError(`"${raw}" is not a SimplePractice Client Portal address.`, {
+      // Echo only what precedes any "#": the emailed apex-variant link
+      // (clientsecure.me/…/sign-in/token#<TOKEN>) names no practice, and its
+      // fragment is a live, unredeemed sign-in token that must never reach a
+      // transcript or host log (fleet-audit#711).
+      const shown = raw.split('#')[0];
+      throw new McpToolError(`"${shown}" is not a SimplePractice Client Portal address.`, {
         hint: 'A portal address is a single practice under clientsecure.me — the slug ("achievebalancetherapy") or the whole host ("achievebalancetherapy.clientsecure.me").',
       });
     }
@@ -179,7 +208,7 @@ export class SimplePracticeClient {
   }
 
   /**
-   * Adopt `raw`'s practice for the duration of `fn`, and keep it only if `fn`
+   * Run `fn` against `raw`'s practice, and adopt that practice only once `fn`
    * succeeds.
    *
    * Sign-in links are single-use, so a failed exchange is the ordinary case,
@@ -187,16 +216,20 @@ export class SimplePracticeClient {
    * pasted a stale link for practice B pointed at B for the life of the
    * process — and their intact session for practice A would report "Not signed
    * in" until a restart. A link only earns the practice by working.
+   *
+   * The host is handed to `fn` rather than adopted up front: tool calls run
+   * concurrently, so adopting before the await would point every other call
+   * at B while B's exchange is still in flight, and restoring on failure
+   * could wipe an adoption a concurrent call had just earned
+   * (fleet-audit#709). It is committed afterwards only if nothing else
+   * adopted a practice in the meantime — the most recent switch stands.
    */
-  async withPracticeHost<T>(raw: string, fn: () => Promise<T>): Promise<T> {
-    const previous = this.adoptedHost;
-    this.adoptPracticeHost(raw);
-    try {
-      return await fn();
-    } catch (err) {
-      this.adoptedHost = previous;
-      throw err;
-    }
+  async withPracticeHost<T>(raw: string, fn: (host: string) => Promise<T>): Promise<T> {
+    const host = this.validatePracticeHost(raw);
+    const before = this.adoptedHost;
+    const result = await fn(host);
+    if (this.adoptedHost === before) this.adoptedHost = host;
+    return result;
   }
 
   /**
@@ -220,13 +253,12 @@ export class SimplePracticeClient {
     return this.requireConfig();
   }
 
-  getSession(): PortalSession | null {
-    const host = this.knownPortalHost();
+  getSession(host: string | null = this.knownPortalHost()): PortalSession | null {
     return host ? this.store.get(host) : null;
   }
 
-  saveSession(cookie: string): PortalSession {
-    const host = this.requireConfig();
+  /** Store a session for `host`, or for the practice in play when omitted. */
+  saveSession(cookie: string, host: string = this.requireConfig()): PortalSession {
     const session: PortalSession = { host, cookie, createdAt: new Date().toISOString() };
     this.store.add(session);
     return session;
@@ -240,8 +272,8 @@ export class SimplePracticeClient {
     return host ? this.store.remove(host) : false;
   }
 
-  private requireSession(): PortalSession {
-    const session = this.getSession();
+  private requireSession(host: string): PortalSession {
+    const session = this.getSession(host);
     if (!session) {
       // McpToolError rather than SessionNotAuthenticatedError: that subclass's
       // constructor is (service, signInHost) and composes its own message, and
@@ -272,20 +304,32 @@ export class SimplePracticeClient {
     document: JsonApiDocument;
     setCookie: string[];
   }> {
-    const host = this.requireConfig();
-    const session = options.anonymous ? null : this.requireSession();
+    const host = options.host ?? this.requireConfig();
+    const session = options.anonymous ? null : this.requireSession(host);
     const query = options.query ? buildQuery(options.query) : '';
     const url = `https://${host}/${API_NAMESPACE}${path}${query ? `?${query}` : ''}`;
 
+    // A deadline of our own, joined to the tool call's cancellation: whichever
+    // fires first aborts the request, including a body still streaming in.
+    const signal = withAmbientCancellation(AbortSignal.timeout(this.requestTimeoutMs));
     let response: Response;
+    let raw: string;
     try {
       response = await this.fetchImpl(url, {
         method: options.method ?? 'GET',
         headers: this.headers(session, options.body !== undefined),
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
         redirect: 'manual',
+        signal,
       });
+      // Inside the try: a connection reset mid-body is a transport failure
+      // like any other, not a raw TypeError.
+      raw = await response.text();
     } catch (err) {
+      // The caller went away: hand back its own reason rather than dressing a
+      // cancellation up as an unreachable portal.
+      const cancelled = currentCallSignal();
+      if (cancelled?.aborted) throw cancelled.reason;
       throw new McpToolError(
         `Could not reach ${host}: ${truncateErrorMessage(messageOf(err))}`,
         {
@@ -294,7 +338,6 @@ export class SimplePracticeClient {
       );
     }
 
-    const raw = await response.text();
     let document: JsonApiDocument | null = null;
     try {
       document = raw ? (JSON.parse(raw) as JsonApiDocument) : {};

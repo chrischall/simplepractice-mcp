@@ -29,7 +29,8 @@ The portal has **no password**. SimplePractice emails a one-time link (or a
 3. `simplepractice_request_sign_in_link` with the user's portal email. It asks
    for confirmation because it sends a real email and the endpoint is
    rate-limited **per address and per IP** — a retry loop locks the user out of
-   the only auth path there is. Where the client cannot show a prompt, the
+   the only auth path there is. A client that can show a prompt gets one
+   (unless the server sets `MCP_CONFIRM_ELICITATION=off`); otherwise the
    first call sends nothing and returns a preview plus a `confirmToken`: show
    the user the preview, and only after they approve call again with the same
    arguments and that `confirmToken`. Never send twice. If the server
@@ -59,7 +60,10 @@ again; that means another email.
 - `simplepractice_list_appointments(status?, page?, pageSize?, view?)` — `status: "scheduled"` for confirmed and
   upcoming, `"requested"` for ones the practice has not confirmed yet.
 - `simplepractice_list_document_requests` — paperwork. `outstandingOnly: true`
-  answers "is anything waiting for me?", which is the usual question.
+  answers "is anything waiting for me?", which is the usual question. It (and
+  `list_documents` / `list_announcements`) reads only the newest `pageSize`
+  rows, max 50: when `hasMore` is `true` the `outstanding` / `unread` counts
+  cover that page only, so do not say nothing is outstanding.
 - `simplepractice_get_billing_overview(view?)` — balance due and per-category counts.
   Cheaper than listing the billing collections to find out they are empty.
 - `simplepractice_list_billing_items(kind?, before?, pageSize?, view?)` — invoices, statements, **superbills**
