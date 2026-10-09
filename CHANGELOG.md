@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.6](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.5...v1.2.6) (2026-10-09)
+
+
+### Bug Fixes
+
+* annotate tools truthfully and sync manifests with the served tools ([#100](https://github.com/chrischall/simplepractice-mcp/issues/100)) ([579c4b4](https://github.com/chrischall/simplepractice-mcp/commit/579c4b41d1b64bebf970ed8b25065d64370ddaab))
+* **auth:** say that sign-out only forgets the local session ([#97](https://github.com/chrischall/simplepractice-mcp/issues/97)) ([32bcd1d](https://github.com/chrischall/simplepractice-mcp/commit/32bcd1dcb7cfb8eaeedd4be27e90419cb91dc81e))
+* **deps:** update @chrischall/mcp-utils to 3.0.0 ([#99](https://github.com/chrischall/simplepractice-mcp/issues/99)) ([54a96ec](https://github.com/chrischall/simplepractice-mcp/commit/54a96ecc79e8db3d4dcd4f45321a73553988b6f1))
+* quote the real sign-in link lifetime and fence practice-authored document text ([#98](https://github.com/chrischall/simplepractice-mcp/issues/98)) ([c970811](https://github.com/chrischall/simplepractice-mcp/commit/c9708119392a14bbc4fadf836970efaad83a76b0))
+* resolve low-severity audit findings ([#95](https://github.com/chrischall/simplepractice-mcp/issues/95)) ([1a37a30](https://github.com/chrischall/simplepractice-mcp/commit/1a37a306369aa9aff878141d9c27717022fe297c))
+
 ## [1.2.5](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.4...v1.2.5) (2026-10-07)
 
 
