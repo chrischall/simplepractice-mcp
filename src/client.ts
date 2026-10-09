@@ -1,9 +1,11 @@
 import {
   EdgeBlockedError,
   McpToolError,
+  currentCallSignal,
   detectEdgeBlock,
   messageOf,
   truncateErrorMessage,
+  withAmbientCancellation,
 } from '@chrischall/mcp-utils';
 import { SessionStore } from '@chrischall/mcp-utils/session';
 import {
@@ -28,6 +30,14 @@ export interface PortalSession extends Record<string, unknown> {
 }
 
 const JSON_API_MEDIA_TYPE = 'application/vnd.api+json';
+
+/**
+ * How long one portal request may take, end to end, before it is abandoned.
+ * The portal sits behind a WAF and an SPA catch-all, so a stall is a real
+ * failure mode — without a deadline the tool call hangs until the host gives
+ * up (fleet-audit#707).
+ */
+export const REQUEST_TIMEOUT_MS = 30_000;
 
 /** Which query strings the portal builds as nested `filter[a][b]=` pairs. */
 export type QueryValue =
@@ -77,11 +87,19 @@ export class SimplePracticeClient {
    */
   private readonly store: SessionStore<PortalSession>;
   private readonly fetchImpl: typeof fetch;
+  private readonly requestTimeoutMs: number;
   /** A practice learned at runtime — from a sign-in link, or named on a tool call. */
   private adoptedHost: string | null = null;
 
-  constructor(opts: { fetchImpl?: typeof fetch; store?: SessionStore<PortalSession> } = {}) {
+  constructor(
+    opts: {
+      fetchImpl?: typeof fetch;
+      store?: SessionStore<PortalSession>;
+      requestTimeoutMs?: number;
+    } = {}
+  ) {
     this.fetchImpl = opts.fetchImpl ?? globalThis.fetch;
+    this.requestTimeoutMs = opts.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
     this.store =
       opts.store ??
       new SessionStore<PortalSession>({
@@ -282,15 +300,27 @@ export class SimplePracticeClient {
     const query = options.query ? buildQuery(options.query) : '';
     const url = `https://${host}/${API_NAMESPACE}${path}${query ? `?${query}` : ''}`;
 
+    // A deadline of our own, joined to the tool call's cancellation: whichever
+    // fires first aborts the request, including a body still streaming in.
+    const signal = withAmbientCancellation(AbortSignal.timeout(this.requestTimeoutMs));
     let response: Response;
+    let raw: string;
     try {
       response = await this.fetchImpl(url, {
         method: options.method ?? 'GET',
         headers: this.headers(session, options.body !== undefined),
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
         redirect: 'manual',
+        signal,
       });
+      // Inside the try: a connection reset mid-body is a transport failure
+      // like any other, not a raw TypeError.
+      raw = await response.text();
     } catch (err) {
+      // The caller went away: hand back its own reason rather than dressing a
+      // cancellation up as an unreachable portal.
+      const cancelled = currentCallSignal();
+      if (cancelled?.aborted) throw cancelled.reason;
       throw new McpToolError(
         `Could not reach ${host}: ${truncateErrorMessage(messageOf(err))}`,
         {
@@ -299,7 +329,6 @@ export class SimplePracticeClient {
       );
     }
 
-    const raw = await response.text();
     let document: JsonApiDocument | null = null;
     try {
       document = raw ? (JSON.parse(raw) as JsonApiDocument) : {};

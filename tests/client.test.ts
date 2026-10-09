@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { McpToolError } from '@chrischall/mcp-utils';
+import { McpToolError, withCallSignal } from '@chrischall/mcp-utils';
 import { SessionStore } from '@chrischall/mcp-utils/session';
 import {
   buildQuery,
@@ -356,6 +356,60 @@ describe('request', () => {
     const client = new SimplePracticeClient({ fetchImpl, store: tempStore() });
     client.saveSession('simplepractice-session=x');
     await expect(client.list('/appointments')).rejects.toThrow(new RegExp(`Could not reach ${HOST}`));
+  });
+});
+
+describe('request deadlines and cancellation (fleet-audit#707)', () => {
+  /** A fetch that never answers until its signal aborts — a stalled portal. */
+  const stalledFetch = (async (_url: string, init: RequestInit = {}) =>
+    new Promise((_resolve, reject) => {
+      const signal = init.signal;
+      if (!signal) return; // no signal: hangs forever, which is the bug
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    })) as unknown as typeof fetch;
+
+  it('gives up on a stalled portal after the request timeout', async () => {
+    const client = new SimplePracticeClient({
+      fetchImpl: stalledFetch,
+      store: tempStore(),
+      requestTimeoutMs: 20,
+    });
+    client.saveSession('simplepractice-session=x');
+    const err = await client.list('/appointments').catch((e: McpToolError) => e);
+    expect(err).toBeInstanceOf(McpToolError);
+    expect(err.message).toMatch(new RegExp(`Could not reach ${HOST}`));
+    // The healthcheck classifies on /timeout|timed out/ — it must be able to.
+    expect(err.message).toMatch(/timeout|timed out/i);
+  });
+
+  it('stops when the tool call is cancelled', async () => {
+    const client = new SimplePracticeClient({
+      fetchImpl: stalledFetch,
+      store: tempStore(),
+      requestTimeoutMs: 60_000,
+    });
+    client.saveSession('simplepractice-session=x');
+    const controller = new AbortController();
+    const pending = withCallSignal(controller.signal, () => client.list('/appointments'));
+    controller.abort(new Error('cancelled by client'));
+    await expect(pending).rejects.toThrow(/cancelled by client/);
+  });
+
+  it('wraps a connection reset while reading the body like any other transport failure', async () => {
+    const fetchImpl = (async () =>
+      ({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        text: async () => {
+          throw new TypeError('terminated');
+        },
+      }) as unknown as Response) as unknown as typeof fetch;
+    const client = new SimplePracticeClient({ fetchImpl, store: tempStore() });
+    client.saveSession('simplepractice-session=x');
+    const err = await client.list('/appointments').catch((e: McpToolError) => e);
+    expect(err).toBeInstanceOf(McpToolError);
+    expect(err.message).toMatch(new RegExp(`Could not reach ${HOST}: terminated`));
   });
 });
 
