@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { viewArg, viewResponse } from '../view.js';
-import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
+import {
+  minifiedResult,
+  toolAnnotations,
+  untrustedResult,
+  UNTRUSTED_CONTENT_RULE,
+  UNTRUSTED_DESCRIPTION_SUFFIX,
+} from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { SimplePracticeClient } from '../client.js';
 import { asBoolean } from '../jsonapi.js';
@@ -17,6 +23,20 @@ const hasMore = (records: unknown[], pageSize: number) => records.length >= page
 const PARTIAL_NOTE =
   ' Returns at most pageSize (max 50) of the newest rows; hasMore: true means the page came back full and older rows — and the counts over them — may be missing.';
 
+/**
+ * Announcement bodies, document titles and bodies, template questions and the
+ * welcome text are written by practice staff or come from practice templates,
+ * not the user. The practice is usually trusted, but in a group practice — or
+ * with a compromised practice account — that text reaches a session that also
+ * holds billing and payment-method tools, so it is fenced as data
+ * (fleet-audit#896).
+ */
+const PRACTICE_TEXT_NOTE =
+  'Titles, bodies, questions, announcements and welcome text below are written by the practice, not the user. ' +
+  UNTRUSTED_CONTENT_RULE;
+const untrustedOpts = { note: PRACTICE_TEXT_NOTE };
+const warn = (description: string) => `${description} ${UNTRUSTED_DESCRIPTION_SUFFIX}`;
+
 /** Statuses that mean the client has nothing left to do. */
 const SETTLED = new Set(['completed', 'locked']);
 
@@ -24,9 +44,10 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
   server.registerTool(
     'simplepractice_list_document_requests',
     {
-      description:
+      description: warn(
         'Paperwork the practice has sent — consents, questionnaires, contact and insurance forms, Good Faith Estimates, shared files. Use outstandingOnly to see just what still needs the client\'s attention.' +
-        PARTIAL_NOTE,
+          PARTIAL_NOTE
+      ),
       annotations: toolAnnotations({ readOnly: true }),
       inputSchema: z.object({
         outstandingOnly: z
@@ -70,21 +91,25 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
         }
         return base;
       });
-      return minifiedResult({
-        count: items.length,
-        outstanding: records.filter((r) => !SETTLED.has(String(r.status))).length,
-        hasMore: hasMore(records, pageSize),
-        welcomeText: meta?.welcomeText ?? null,
-        documentRequests: items,
-      });
+      return untrustedResult(
+        {
+          count: items.length,
+          outstanding: records.filter((r) => !SETTLED.has(String(r.status))).length,
+          hasMore: hasMore(records, pageSize),
+          welcomeText: meta?.welcomeText ?? null,
+          documentRequests: items,
+        },
+        untrustedOpts
+      );
     }
   );
 
   server.registerTool(
     'simplepractice_get_document_request',
     {
-      description:
-        'One document request in full, including its body or its questions and the answers already given.',
+      description: warn(
+        'One document request in full, including its body or its questions and the answers already given.'
+      ),
       annotations: toolAnnotations({ readOnly: true }),
       inputSchema: z.object({
         id: z.string().min(1).describe('The document request id.'),
@@ -102,17 +127,18 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       // is no field list to pick. Compact strips the practice logo and
       // clinician avatars these carry; `hasDocumentPdf` is a fact about the
       // document, not a media key, and survives.
-      return viewResponse(view, {
-        ...record,
-        hasDocumentPdf: asBoolean(record.hasDocumentPdf) ?? false,
-      });
+      return viewResponse(
+        view,
+        { ...record, hasDocumentPdf: asBoolean(record.hasDocumentPdf) ?? false },
+        PRACTICE_TEXT_NOTE
+      );
     }
   );
 
   server.registerTool(
     'simplepractice_list_documents',
     {
-      description: 'Files the practice has shared through the Client Portal.' + PARTIAL_NOTE,
+      description: warn('Files the practice has shared through the Client Portal.' + PARTIAL_NOTE),
       annotations: toolAnnotations({ readOnly: true }),
       inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
@@ -125,20 +151,20 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     // exactly the rows a caller came for rather than shrink them.
     async ({ pageSize }) => {
       const { records } = await client.list('/documents', { page: { size: pageSize } });
-      return minifiedResult({
-        count: records.length,
-        hasMore: hasMore(records, pageSize),
-        documents: records,
-      });
+      return untrustedResult(
+        { count: records.length, hasMore: hasMore(records, pageSize), documents: records },
+        untrustedOpts
+      );
     }
   );
 
   server.registerTool(
     'simplepractice_list_announcements',
     {
-      description:
+      description: warn(
         'Announcements the practice has posted to the Client Portal. readAt is null on unread ones.' +
-        PARTIAL_NOTE,
+          PARTIAL_NOTE
+      ),
       annotations: toolAnnotations({ readOnly: true }),
       inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
@@ -152,12 +178,16 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       // see — and `readAt: null` is data, which this rung leaves alone (it
       // drops media keys, never nulls), so the unread count above stays
       // reconcilable against the rows below it.
-      return viewResponse(view, {
-        count: records.length,
-        unread: records.filter((r) => r.readAt === null || r.readAt === undefined).length,
-        hasMore: hasMore(records, pageSize),
-        announcements: records,
-      });
+      return viewResponse(
+        view,
+        {
+          count: records.length,
+          unread: records.filter((r) => r.readAt === null || r.readAt === undefined).length,
+          hasMore: hasMore(records, pageSize),
+          announcements: records,
+        },
+        PRACTICE_TEXT_NOTE
+      );
     }
   );
 }

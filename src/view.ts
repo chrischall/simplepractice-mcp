@@ -1,4 +1,11 @@
-import { minifiedResult, resolveView, stripMediaUrls, viewParam, type View } from '@chrischall/mcp-utils';
+import {
+  minifiedResult,
+  resolveView,
+  stripMediaUrls,
+  untrustedEnvelope,
+  viewParam,
+  type View,
+} from '@chrischall/mcp-utils';
 
 /**
  * The rungs this server honours (`@chrischall/mcp-utils`' `view` vocabulary;
@@ -37,7 +44,16 @@ export function isCompact(view: string | undefined): boolean {
 /**
  * Answer a payload that has NO hand-written projection: compact strips media,
  * full passes through.
+ *
+ * Pass `untrustedNote` when the payload carries text a third party wrote: the
+ * result is then wrapped in mcp-utils' untrusted envelope, markers first,
+ * AFTER the rung is applied — so the fence is never itself compacted away.
  */
-export function viewResponse(view: string | undefined, data: unknown): ReturnType<typeof minifiedResult> {
-  return minifiedResult(isCompact(view) ? stripMediaUrls(data) : data);
+export function viewResponse(
+  view: string | undefined,
+  data: unknown,
+  untrustedNote?: string
+): ReturnType<typeof minifiedResult> {
+  const shaped = isCompact(view) ? stripMediaUrls(data) : data;
+  return minifiedResult(untrustedNote ? untrustedEnvelope(shaped, { note: untrustedNote }) : shaped);
 }
