@@ -29,7 +29,8 @@ The portal has **no password**. SimplePractice emails a one-time link (or a
 3. `simplepractice_request_sign_in_link` with the user's portal email. It asks
    for confirmation because it sends a real email and the endpoint is
    rate-limited **per address and per IP** — a retry loop locks the user out of
-   the only auth path there is. Where the client cannot show a prompt, the
+   the only auth path there is. A client that can show a prompt gets one
+   (unless the server sets `MCP_CONFIRM_ELICITATION=off`); otherwise the
    first call sends nothing and returns a preview plus a `confirmToken`: show
    the user the preview, and only after they approve call again with the same
    arguments and that `confirmToken`. Never send twice. If the server

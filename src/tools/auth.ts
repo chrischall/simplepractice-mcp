@@ -51,7 +51,7 @@ export function registerAuthTools(server: McpServer, client: SimplePracticeClien
     'simplepractice_request_sign_in_link',
     {
       description:
-        'Ask SimplePractice to email a sign-in link to a Client Portal address. The portal has no password — this is how you sign in. Sends a real email and is rate-limited per email address AND per IP, so it asks the user to confirm first: a confirmation prompt where the client supports one; otherwise the first call returns a preview and a confirmToken, and only a repeat call with that token proceeds (see MCP_CONFIRM_MODE). A success does not prove the address has an account: the API answers identically for unknown addresses by design.',
+        'Ask SimplePractice to email a sign-in link to a Client Portal address. The portal has no password — this is how you sign in. Sends a real email and is rate-limited per email address AND per IP, so it asks the user to confirm first: a confirmation prompt where the client supports one (unless MCP_CONFIRM_ELICITATION=off); otherwise the first call returns a preview and a confirmToken, and only a repeat call with that token proceeds (see MCP_CONFIRM_MODE). A success does not prove the address has an account: the API answers identically for unknown addresses by design.',
       annotations: toolAnnotations({ readOnly: false, idempotent: false, destructive: true }),
       inputSchema: z.object({
         email: z.string().email().describe('The email address the Client Portal is registered to.'),
