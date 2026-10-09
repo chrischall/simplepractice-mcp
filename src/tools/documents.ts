@@ -48,7 +48,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
         'Paperwork the practice has sent — consents, questionnaires, contact and insurance forms, Good Faith Estimates, shared files. Use outstandingOnly to see just what still needs the client\'s attention.' +
           PARTIAL_NOTE
       ),
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: true }),
       inputSchema: z.object({
         outstandingOnly: z
           .boolean()
@@ -110,7 +110,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       description: warn(
         'One document request in full, including its body or its questions and the answers already given.'
       ),
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: true }),
       inputSchema: z.object({
         id: z.string().min(1).describe('The document request id.'),
         view: viewArg(),
@@ -139,7 +139,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     'simplepractice_list_documents',
     {
       description: warn('Files the practice has shared through the Client Portal.' + PARTIAL_NOTE),
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: true }),
       inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
       }),
@@ -165,7 +165,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
         'Announcements the practice has posted to the Client Portal. readAt is null on unread ones.' +
           PARTIAL_NOTE
       ),
-      annotations: toolAnnotations({ readOnly: true }),
+      annotations: toolAnnotations({ readOnly: true, openWorld: true }),
       inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
         view: viewArg(),
