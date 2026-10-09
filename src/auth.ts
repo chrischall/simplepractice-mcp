@@ -16,7 +16,10 @@ export interface VerifyResult {
 /**
  * Ask SimplePractice to email a sign-in link.
  *
- * The response always reports a 24-hour lifetime and always succeeds for a
+ * No `expiresIn` is sent: SimplePractice ignored the one this used to ask for
+ * and issues its own lifetime (24 hours, so far), which the response reports.
+ * That reported lifetime is recorded on the client so later hints quote it
+ * (fleet-audit#895). The request always succeeds for a
  * well-formed address — deliberately, so that it cannot be used to probe
  * whether an email has an account. A 202 is therefore NOT evidence the address
  * is registered, and the tool description says so.
@@ -31,12 +34,13 @@ export async function requestSignInLink(
     anonymous: true,
     host,
     body: {
-      data: { type: 'sign-in-tokens', attributes: { email, expiresIn: '15 minutes' } },
+      data: { type: 'sign-in-tokens', attributes: { email } },
     },
   });
   const data = Array.isArray(document.data) ? document.data[0] : document.data;
-  const expiresIn = (data?.attributes?.expiresIn as string | undefined) ?? '24 hours';
-  return { expiresIn };
+  const reported = data?.attributes?.expiresIn;
+  if (typeof reported === 'string' && reported.trim() !== '') client.signInLinkLifetime = reported;
+  return { expiresIn: client.signInLinkLifetime };
 }
 
 function extractToken(raw: string): string {
@@ -82,7 +86,7 @@ async function establishSession(
     throw new McpToolError(`SimplePractice did not accept the sign-in: ${status}.`, {
       hint:
         status === 'expired'
-          ? 'Sign-in links last 24 hours. Request a new one.'
+          ? `Sign-in links last ${client.signInLinkLifetime}. Request a new one.`
           : 'Sign-in tokens and PINs are single-use. Request a new one rather than reusing the last.',
     });
   }

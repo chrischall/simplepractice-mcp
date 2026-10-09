@@ -55,7 +55,9 @@ describe('requestSignInLink', () => {
     expect(JSON.parse(String(calls[0].init.body))).toEqual({
       data: {
         type: 'sign-in-tokens',
-        attributes: { email: 'someone@example.com', expiresIn: '15 minutes' },
+        // No expiresIn: SimplePractice ignored the one this used to ask for
+        // and issued its own lifetime anyway (fleet-audit#895).
+        attributes: { email: 'someone@example.com' },
       },
     });
     expect(result.expiresIn).toBe('24 hours');
@@ -72,6 +74,43 @@ describe('requestSignInLink', () => {
     await expect(requestSignInLink(client, 'a@example.com')).resolves.toEqual({
       expiresIn: '24 hours',
     });
+  });
+});
+
+describe('the link lifetime in hints comes from the API, not a constant (fleet-audit#895)', () => {
+  it('an expired link is described with the lifetime SimplePractice last reported', async () => {
+    const { client } = makeClient([
+      { status: 202, body: { data: { attributes: { expiresIn: '2 hours' } } } },
+      { body: { data: { meta: { status: 'expired' } } } },
+    ]);
+    await requestSignInLink(client, 'a@example.com');
+    const err = await verifySignInToken(client, 'tok').catch((e: McpToolError) => e);
+    expect((err as McpToolError).hint).toMatch(/Sign-in links last 2 hours/);
+  });
+
+  it('a rejected sign-in 401 is described with the reported lifetime too', async () => {
+    const { client } = makeClient([
+      { status: 202, body: { data: { attributes: { expiresIn: '2 hours' } } } },
+      { status: 401, body: { errors: [{ title: 'Authorization has already been used or expired' }] } },
+    ]);
+    await requestSignInLink(client, 'a@example.com');
+    const err = await verifySignInToken(client, 'tok').catch((e: McpToolError) => e);
+    expect((err as McpToolError).hint).toMatch(/single-use and last 2 hours/);
+  });
+
+  it.each([[''], ['  '], [24]])(
+    'keeps the last known lifetime when the API reports an unusable one (%j)',
+    async (expiresIn) => {
+      const { client } = makeClient([{ status: 202, body: { data: { attributes: { expiresIn } } } }]);
+      await expect(requestSignInLink(client, 'a@example.com')).resolves.toEqual({
+        expiresIn: '24 hours',
+      });
+    }
+  );
+
+  it('falls back to the documented 24 hours before any link has been requested', () => {
+    const { client } = makeClient([]);
+    expect(client.signInLinkLifetime).toBe('24 hours');
   });
 });
 
