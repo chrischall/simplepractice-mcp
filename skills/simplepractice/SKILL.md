@@ -59,7 +59,10 @@ again; that means another email.
 - `simplepractice_list_appointments(status?, page?, pageSize?, view?)` — `status: "scheduled"` for confirmed and
   upcoming, `"requested"` for ones the practice has not confirmed yet.
 - `simplepractice_list_document_requests` — paperwork. `outstandingOnly: true`
-  answers "is anything waiting for me?", which is the usual question.
+  answers "is anything waiting for me?", which is the usual question. It (and
+  `list_documents` / `list_announcements`) reads only the newest `pageSize`
+  rows, max 50: when `hasMore` is `true` the `outstanding` / `unread` counts
+  cover that page only, so do not say nothing is outstanding.
 - `simplepractice_get_billing_overview(view?)` — balance due and per-category counts.
   Cheaper than listing the billing collections to find out they are empty.
 - `simplepractice_list_billing_items(kind?, before?, pageSize?, view?)` — invoices, statements, **superbills**

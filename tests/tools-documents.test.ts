@@ -367,3 +367,35 @@ describe('simplepractice_list_documents and announcements', () => {
     await harness.close();
   });
 });
+
+describe('a full page is reported as possibly partial (fleet-audit#708)', () => {
+  // These endpoints take only page[size] (max 50), so a full page may hide
+  // older rows — and with them outstanding paperwork or unread announcements.
+  // The counts must say so rather than read as the whole story.
+  const rows = (n: number, attrs: Record<string, unknown>) => ({
+    body: {
+      data: Array.from({ length: n }, (_, i) => ({ id: String(i + 1), type: 'x', attributes: attrs })),
+    },
+  });
+
+  for (const [tool, attrs] of [
+    ['simplepractice_list_document_requests', { status: 'sent' }],
+    ['simplepractice_list_documents', { name: 'scan.pdf' }],
+    ['simplepractice_list_announcements', { readAt: null }],
+  ] as const) {
+    it(`${tool}: hasMore is true when the page came back full`, async () => {
+      const { harness, calls } = await harnessFor([rows(3, attrs)]);
+      const out = parseToolResult<any>(await harness.callTool(tool, { pageSize: 3 }));
+      expect(calls[0].url).toContain('page%5Bsize%5D=3');
+      expect(out.hasMore).toBe(true);
+      await harness.close();
+    });
+
+    it(`${tool}: hasMore is false on a short page`, async () => {
+      const { harness } = await harnessFor([rows(2, attrs)]);
+      const out = parseToolResult<any>(await harness.callTool(tool, { pageSize: 3 }));
+      expect(out.hasMore).toBe(false);
+      await harness.close();
+    });
+  }
+});

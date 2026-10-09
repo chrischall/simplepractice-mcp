@@ -7,6 +7,16 @@ import { asBoolean } from '../jsonapi.js';
 
 const PAGE_SIZE_MAX = 50;
 
+/**
+ * These endpoints page by `page[size]` alone (see docs/SIMPLEPRACTICE-API.md),
+ * so a full page may be hiding older rows — and with them outstanding
+ * paperwork or unread announcements. The API sends no total; a short page is
+ * the last page, as with appointments (fleet-audit#708).
+ */
+const hasMore = (records: unknown[], pageSize: number) => records.length >= pageSize;
+const PARTIAL_NOTE =
+  ' Returns at most pageSize (max 50) of the newest rows; hasMore: true means the page came back full and older rows — and the counts over them — may be missing.';
+
 /** Statuses that mean the client has nothing left to do. */
 const SETTLED = new Set(['completed', 'locked']);
 
@@ -15,7 +25,8 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     'simplepractice_list_document_requests',
     {
       description:
-        'Paperwork the practice has sent — consents, questionnaires, contact and insurance forms, Good Faith Estimates, shared files. Use outstandingOnly to see just what still needs the client\'s attention.',
+        'Paperwork the practice has sent — consents, questionnaires, contact and insurance forms, Good Faith Estimates, shared files. Use outstandingOnly to see just what still needs the client\'s attention.' +
+        PARTIAL_NOTE,
       annotations: toolAnnotations({ readOnly: true }),
       inputSchema: z.object({
         outstandingOnly: z
@@ -62,6 +73,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       return minifiedResult({
         count: items.length,
         outstanding: records.filter((r) => !SETTLED.has(String(r.status))).length,
+        hasMore: hasMore(records, pageSize),
         welcomeText: meta?.welcomeText ?? null,
         documentRequests: items,
       });
@@ -100,7 +112,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
   server.registerTool(
     'simplepractice_list_documents',
     {
-      description: 'Files the practice has shared through the Client Portal.',
+      description: 'Files the practice has shared through the Client Portal.' + PARTIAL_NOTE,
       annotations: toolAnnotations({ readOnly: true }),
       inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
@@ -113,7 +125,11 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     // exactly the rows a caller came for rather than shrink them.
     async ({ pageSize }) => {
       const { records } = await client.list('/documents', { page: { size: pageSize } });
-      return minifiedResult({ count: records.length, documents: records });
+      return minifiedResult({
+        count: records.length,
+        hasMore: hasMore(records, pageSize),
+        documents: records,
+      });
     }
   );
 
@@ -121,7 +137,8 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     'simplepractice_list_announcements',
     {
       description:
-        'Announcements the practice has posted to the Client Portal. readAt is null on unread ones.',
+        'Announcements the practice has posted to the Client Portal. readAt is null on unread ones.' +
+        PARTIAL_NOTE,
       annotations: toolAnnotations({ readOnly: true }),
       inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
@@ -138,6 +155,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       return viewResponse(view, {
         count: records.length,
         unread: records.filter((r) => r.readAt === null || r.readAt === undefined).length,
+        hasMore: hasMore(records, pageSize),
         announcements: records,
       });
     }
