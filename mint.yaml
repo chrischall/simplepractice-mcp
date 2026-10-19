@@ -19,6 +19,16 @@ summary: >-
   Read a SimplePractice Client Portal as one of a practice's clients —
   appointments, billing, documents to sign, and announcements.
 
+# Sample prompts for the public catalog. Each one is answerable by the
+# read-only tools this server actually registers.
+examples:
+  - prompt: "When is my next therapy appointment, and do I have any requests still waiting on the practice to confirm?"
+    note: Lists scheduled and requested appointments.
+  - prompt: "Do I owe anything on my SimplePractice account right now?"
+    note: Reads the billing overview's balance due.
+  - prompt: "Are there any forms or consents my practice still needs me to fill out?"
+    note: Lists only the outstanding document requests.
+
 env:
   - name: SIMPLEPRACTICE_PRACTICE
     secret: false
