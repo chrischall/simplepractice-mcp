@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.8](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.7...v1.2.8) (2026-10-26)
+
+
+### Bug Fixes
+
+* **deps:** bump the production-dependencies group with 2 updates ([#110](https://github.com/chrischall/simplepractice-mcp/issues/110)) ([e421bb6](https://github.com/chrischall/simplepractice-mcp/commit/e421bb651515fbe74c01688433fa00926c26d387))
+* **deps:** bump the production-dependencies group with 3 updates ([#107](https://github.com/chrischall/simplepractice-mcp/issues/107)) ([1070a4f](https://github.com/chrischall/simplepractice-mcp/commit/1070a4f56d1d9639540fa326386551dbd45be22c))
+
+
+### Documentation
+
+* **mint:** add sample prompts for the public catalog ([#109](https://github.com/chrischall/simplepractice-mcp/issues/109)) ([3f9e344](https://github.com/chrischall/simplepractice-mcp/commit/3f9e3449ac84df29c4c1d1e254d429d69e3ccf9e))
+
 ## [1.2.7](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.6...v1.2.7) (2026-10-13)
 
 
