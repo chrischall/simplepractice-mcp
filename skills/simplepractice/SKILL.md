@@ -80,8 +80,9 @@ SimplePractice" — say the server forgot its session.
 
 ## Response shape (`view`)
 
-Five of the reads take `view: "compact" | "full"`, and **`compact` is the
-default**: `simplepractice_list_appointments`,
+Five of the reads take `view: "compact" | "full"` (two of them, and
+`simplepractice_list_document_requests`, also take `"brief"` — see "In context
+groups"), and **`compact` is the default**: `simplepractice_list_appointments`,
 `simplepractice_list_billing_items`, `simplepractice_get_billing_overview`,
 `simplepractice_get_document_request` and
 `simplepractice_list_announcements`.
@@ -148,6 +149,30 @@ The other ten tools take no `view`, and each has its own reason:
   `simplepractice_verify_sign_in_token` and `simplepractice_sign_out`** are
   writes. A write's response is a receipt, with nothing to strip and everything
   to keep.
+
+## In context groups
+
+Every tool except the healthcheck carries a `_meta.mint` hint placing it in
+mcp-host's **`health`** group, so a host that groups connectors can answer a
+health question across this MCP and its siblings in one ask. The canonical
+reads, each taking `view: "brief"` (one line per item,
+`title — <ISO date | no date> — <status>`, an empty answer when there is
+nothing):
+
+- **what's on** — `simplepractice_list_appointments`: the scheduled
+  appointments (`<service> with <clinician> — <start> — <status>`).
+- **what's due** — `simplepractice_list_document_requests`: in `brief`, the
+  OUTSTANDING paperwork only, with `no date` because the portal sets none.
+- **what's new** — `simplepractice_list_announcements`: in `brief`, the
+  UNREAD announcements only.
+
+None takes a subject or a range: one portal login answers for the signed-in
+client, and no tool takes an argument naming whose record to read. A
+compound ask reads like "any therapy appointments this week, and is there
+paperwork I still owe?" — the host fans out to the what's-on and what's-due
+reads here and beside it. A signed-out session answers as an error naming the
+sign-in tools, not as an empty list; it is not a browser-bridged MCP, so
+there is no "needs your browser open" state.
 
 ## Reading the results honestly
 

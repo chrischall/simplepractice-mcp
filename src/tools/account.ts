@@ -3,6 +3,7 @@ import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
 import { parseJsonString } from '../jsonapi.js';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { SimplePracticeClient } from '../client.js';
+import { healthMeta } from '../hints.js';
 
 /**
  * No `view` here, deliberately.
@@ -21,6 +22,7 @@ export function registerAccountTools(server: McpServer, client: SimplePracticeCl
       description:
         'The practice, the signed-in client, and every client this login can see. One portal login is a "client access" and may cover more than one client — a parent seeing two children, say — so clients is always a list.',
       annotations: toolAnnotations({ readOnly: true, openWorld: true }),
+      _meta: healthMeta('lookup', { aliases: ['practice', 'cancellation policy'] }),
       inputSchema: z.object({}),
     },
     async () => {
