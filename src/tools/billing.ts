@@ -4,6 +4,7 @@ import { minifiedResult, toolAnnotations } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { SimplePracticeClient } from '../client.js';
 import { asBoolean } from '../jsonapi.js';
+import { healthMeta } from '../hints.js';
 
 const PAGE_SIZE_MAX = 50;
 
@@ -45,6 +46,7 @@ export function registerBillingTools(server: McpServer, client: SimplePracticeCl
       description:
         'Invoices, statements, superbills, receipts, or account history from the Client Portal. An empty list is a real answer — many practices bill entirely outside the portal. Pages by cursor: pass the returned nextCursor as "before".',
       annotations: toolAnnotations({ readOnly: true, openWorld: true }),
+      _meta: healthMeta('lookup', { aliases: ['bills', 'invoices', 'receipts', 'superbill', 'statements'] }),
       inputSchema: z.object({
         kind: z
           .enum(['invoice', 'statement', 'superbill', 'receipt', 'account-history'])
@@ -90,6 +92,7 @@ export function registerBillingTools(server: McpServer, client: SimplePracticeCl
       description:
         'Balance due and per-category counts for the Client Portal account. Cheaper than paging the billing collections just to find out whether anything is there.',
       annotations: toolAnnotations({ readOnly: true, openWorld: true }),
+      _meta: healthMeta('lookup', { aliases: ['balance', 'what do i owe', 'therapy bill'] }),
       inputSchema: z.object({ view: viewArg() }),
     },
     async ({ view }) => {
@@ -108,6 +111,7 @@ export function registerBillingTools(server: McpServer, client: SimplePracticeCl
       description:
         'Payment methods saved to the Client Portal — brand, last four digits, and expiry. No full card numbers.',
       annotations: toolAnnotations({ readOnly: true, openWorld: true }),
+      _meta: healthMeta('lookup', { aliases: ['card on file', 'payment method'] }),
       inputSchema: z.object({}),
     },
     // No `view`: the response below IS a projection, hand-written down to five

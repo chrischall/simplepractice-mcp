@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { viewArg, viewResponse } from '../view.js';
+import { briefViewArg, viewArg, viewArgWithBrief, viewResponse } from '../view.js';
+import { briefLine, briefResult, healthMeta, oneLine } from '../hints.js';
 import {
   minifiedResult,
   toolAnnotations,
@@ -49,6 +50,10 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
           PARTIAL_NOTE
       ),
       annotations: toolAnnotations({ readOnly: true, openWorld: true }),
+      _meta: healthMeta('whats-due', {
+        canonical: true,
+        aliases: ['paperwork', 'forms', 'intake', 'consent', 'questionnaire', 'sign'],
+      }),
       inputSchema: z.object({
         outstandingOnly: z
           .boolean()
@@ -59,15 +64,36 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
           .boolean()
           .default(false)
           .describe('Include the full document body/questions. Off by default — these are long.'),
+        view: briefViewArg(
+          ['compact'],
+          '"compact" (default) is the projection below.'
+        ),
       }),
     },
-    // No `view`: `items` below is a hand-written projection, and `includeBody`
-    // is a field the caller explicitly asked for. A blind rung run over that
-    // output could only take back something chosen on purpose.
-    async ({ outstandingOnly, pageSize, includeBody }) => {
+    // No blind rung: `items` below is a hand-written projection, and
+    // `includeBody` is a field the caller explicitly asked for — a media strip
+    // run over that output could only take back something chosen on purpose.
+    // `brief` is the one other answer, and it answers what is DUE: the
+    // outstanding requests only, whatever `outstandingOnly` says, since a
+    // completed consent form is not something anyone still has to do.
+    async ({ outstandingOnly, pageSize, includeBody, view }) => {
       const { records, meta } = await client.list('/document-requests', {
         page: { size: pageSize },
       });
+      if (view === 'brief') {
+        return briefResult(
+          records
+            .filter((r) => !SETTLED.has(String(r.status)))
+            .map((r) =>
+              // The portal sets no due date on a request, so none is invented.
+              briefLine(
+                oneLine(r.documentTitle) ?? oneLine(r.type) ?? 'Document request',
+                undefined,
+                oneLine(r.status) ?? 'outstanding'
+              )
+            )
+        );
+      }
       const filtered = outstandingOnly
         ? records.filter((r) => !SETTLED.has(String(r.status)))
         : records;
@@ -111,6 +137,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
         'One document request in full, including its body or its questions and the answers already given.'
       ),
       annotations: toolAnnotations({ readOnly: true, openWorld: true }),
+      _meta: healthMeta('lookup'),
       inputSchema: z.object({
         id: z.string().min(1).describe('The document request id.'),
         view: viewArg(),
@@ -140,6 +167,7 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
     {
       description: warn('Files the practice has shared through the Client Portal.' + PARTIAL_NOTE),
       annotations: toolAnnotations({ readOnly: true, openWorld: true }),
+      _meta: healthMeta('lookup', { aliases: ['shared files', 'documents'] }),
       inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
       }),
@@ -166,13 +194,37 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
           PARTIAL_NOTE
       ),
       annotations: toolAnnotations({ readOnly: true, openWorld: true }),
+      _meta: healthMeta('whats-new', {
+        canonical: true,
+        aliases: ['announcements', 'practice news', 'office news', 'updates'],
+      }),
       inputSchema: z.object({
         pageSize: z.number().int().positive().max(PAGE_SIZE_MAX).default(PAGE_SIZE_MAX),
-        view: viewArg(),
+        view: viewArgWithBrief(),
       }),
     },
     async ({ pageSize, view }) => {
       const { records } = await client.list('/announcements', { page: { size: pageSize } });
+      if (view === 'brief') {
+        // What is NEW: the unread announcements only (readAt null or absent,
+        // the same rule as the unread count below). The date is when it was
+        // posted, under whichever name the record carries. Brief answers carry
+        // no untrusted envelope — a host reads them line by line, and a marker
+        // line would count as an item — so the practice-written text is
+        // flattened to one line and cut at 120 characters instead, and the
+        // tool description still carries the untrusted-text warning.
+        return briefResult(
+          records
+            .filter((r) => r.readAt === null || r.readAt === undefined)
+            .map((r) =>
+              briefLine(
+                oneLine(r.title) ?? 'Announcement',
+                oneLine(r.publishedAt) ?? oneLine(r.createdAt),
+                'unread'
+              )
+            )
+        );
+      }
       // Verbatim upstream records again. An announcement is text the practice
       // posted, so its banner and author avatar are decoration a model cannot
       // see — and `readAt: null` is data, which this rung leaves alone (it

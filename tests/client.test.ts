@@ -166,6 +166,17 @@ describe('where the practice host comes from', () => {
     expect(restarted.getSession()?.cookie).toBe('simplepractice-session=A2');
   });
 
+  it('keeps the newer session when an older one is listed after it', () => {
+    // The store lists in insertion order, which need not be time order: a
+    // session restored with an older createdAt can sit after a newer one.
+    const store = tempStore();
+    store.add({ host: HOST, cookie: 'simplepractice-session=NEW', createdAt: '2026-11-02T00:00:00.000Z' });
+    store.add({ host: OTHER, cookie: 'simplepractice-session=OLD', createdAt: '2026-11-01T00:00:00.000Z' });
+    delete process.env.SIMPLEPRACTICE_PRACTICE;
+    const restarted = new SimplePracticeClient({ store });
+    expect(restarted.portalHost()).toBe(HOST);
+  });
+
   it('refuses an adopted host that is not a Client Portal address', () => {
     const { client } = makeClient();
     expect(() => client.adoptPracticeHost('evil.example.com')).toThrow(McpToolError);

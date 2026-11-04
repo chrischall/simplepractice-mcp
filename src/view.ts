@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   minifiedResult,
   resolveView,
@@ -35,6 +36,22 @@ const NOTE =
 /** The `view` parameter every read tool in this server takes. */
 export const viewArg = (): ReturnType<typeof viewParam> => viewParam(SP_VIEWS, { note: NOTE });
 
+const BRIEF_NOTE =
+  '"brief" answers one text line per item — title — <ISO date or "no date"> — <status> — for a host ' +
+  'that only needs to say what is there.';
+
+/**
+ * The `view` parameter of a context-group canonical read (src/hints.ts): the
+ * server's own rungs plus `brief`, which is not a fleet rung (mcp-utils'
+ * `viewParam` refuses it) but the host contract's one-line-per-item answer.
+ * `rungs` is the rungs this tool honours besides it.
+ */
+export const briefViewArg = (rungs: readonly string[], what: string) =>
+  z
+    .enum(['brief', ...rungs] as [string, ...string[]])
+    .optional()
+    .describe(`${what} ${BRIEF_NOTE}`);
+
 /** Is this call asking for the slim rung? Replaces the old `compact` boolean. */
 export function isCompact(view: string | undefined): boolean {
   const rung: View = resolveView(view, SP_VIEWS);
@@ -57,3 +74,6 @@ export function viewResponse(
   const shaped = isCompact(view) ? stripMediaUrls(data) : data;
   return minifiedResult(untrustedNote ? untrustedEnvelope(shaped, { note: untrustedNote }) : shaped);
 }
+
+/** {@link viewArg}'s rungs plus `brief`, for this server's canonical reads that otherwise take {@link viewArg}. */
+export const viewArgWithBrief = () => briefViewArg(SP_VIEWS, NOTE);
