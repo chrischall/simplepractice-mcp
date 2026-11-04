@@ -156,8 +156,11 @@ Every tool except the healthcheck carries a `_meta.mint` hint placing it in
 mcp-host's **`health`** group, so a host that groups connectors can answer a
 health question across this MCP and its siblings in one ask. The canonical
 reads, each taking `view: "brief"` (one line per item,
-`title — <ISO date | no date> — <status>`, an empty answer when there is
-nothing):
+`title — <ISO date | no date> — <status>`, at most 120 characters, inside the
+untrusted-data envelope as `data: string[]` because the titles are the
+practice's; a line starting `-- ` is a note — `-- none` when there is
+nothing, `-- more` when the page came back full — and an item whose title
+starts with `-- ` or `\` is escaped with one leading `\`):
 
 - **what's on** — `simplepractice_list_appointments`: the scheduled
   appointments (`<service> with <clinician> — <start> — <status>`).
