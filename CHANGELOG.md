@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/chrischall/simplepractice-mcp/compare/v1.3.0...v1.3.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **brief:** align the brief view with the fleet contract ([#114](https://github.com/chrischall/simplepractice-mcp/issues/114)) ([8548484](https://github.com/chrischall/simplepractice-mcp/commit/85484842b4585e5e219dced0bf1456772eca11cd))
+
 ## [1.3.0](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.7...v1.3.0) (2026-11-04)
 
 
