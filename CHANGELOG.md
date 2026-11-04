@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.0](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.7...v1.3.0) (2026-11-04)
+
+
+### Features
+
+* context-group hints, brief views on appointments, paperwork and announcements ([#113](https://github.com/chrischall/simplepractice-mcp/issues/113)) ([4daa85a](https://github.com/chrischall/simplepractice-mcp/commit/4daa85a88d00ab2a4bf9fa353416d2a414b97ad2))
+
+
+### Bug Fixes
+
+* **deps:** bump the production-dependencies group across 1 directory with 2 updates ([#112](https://github.com/chrischall/simplepractice-mcp/issues/112)) ([8946f2a](https://github.com/chrischall/simplepractice-mcp/commit/8946f2adae72b37bd1f8b9fce6130cba2bf0c154))
+* **deps:** bump the production-dependencies group with 2 updates ([#110](https://github.com/chrischall/simplepractice-mcp/issues/110)) ([e421bb6](https://github.com/chrischall/simplepractice-mcp/commit/e421bb651515fbe74c01688433fa00926c26d387))
+* **deps:** bump the production-dependencies group with 3 updates ([#107](https://github.com/chrischall/simplepractice-mcp/issues/107)) ([1070a4f](https://github.com/chrischall/simplepractice-mcp/commit/1070a4f56d1d9639540fa326386551dbd45be22c))
+
+
+### Documentation
+
+* **mint:** add sample prompts for the public catalog ([#109](https://github.com/chrischall/simplepractice-mcp/issues/109)) ([3f9e344](https://github.com/chrischall/simplepractice-mcp/commit/3f9e3449ac84df29c4c1d1e254d429d69e3ccf9e))
+
 ## [1.2.7](https://github.com/chrischall/simplepractice-mcp/compare/v1.2.6...v1.2.7) (2026-10-13)
 
 
