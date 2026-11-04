@@ -165,10 +165,33 @@ describe('_meta.mint on the served tool list', () => {
   });
 });
 
+/**
+ * A brief answer is the fleet's untrusted-data envelope, minified, the marker
+ * and the note FIRST, with the lines as `data: string[]` — every line here
+ * carries practice-written text (service and clinician names, document
+ * titles, announcement titles). Returns the lines.
+ */
+function briefOf(result: unknown): string[] {
+  const text = textOf(result);
+  expect(text).not.toMatch(/\n/);
+  const env = JSON.parse(text);
+  expect(Object.keys(env)).toEqual(['untrusted_content', 'note', 'data']);
+  expect(env.untrusted_content).toBe(true);
+  expect(env.note).toMatch(/written by the practice/);
+  expect(Array.isArray(env.data)).toBe(true);
+  for (const line of env.data) {
+    expect(typeof line).toBe('string');
+    expect(line.length).toBeLessThanOrEqual(120);
+  }
+  return env.data;
+}
+
+const appt = (id: string, attributes: Record<string, unknown>) => ({ id, type: 'appointments', attributes });
+
 describe('view "brief" on the canonical reads', () => {
   const longTitle = 'A'.repeat(200);
 
-  it('appointments: one line per appointment, service — start — status', async () => {
+  it('appointments: one line per appointment, service — start — status, inside the envelope', async () => {
     const h = await harness([
       {
         body: {
@@ -183,40 +206,87 @@ describe('view "brief" on the canonical reads', () => {
               },
               relationships: { clinician: { data: { id: '3', type: 'clinicians' } } },
             },
-            { id: '2', type: 'appointments', attributes: { serviceDescription: longTitle } },
-            { id: '3', type: 'appointments', attributes: {} },
+            appt('2', { serviceDescription: longTitle }),
+            appt('3', {}),
           ],
           included: [{ id: '3', type: 'clinicians', attributes: { firstName: 'Test', lastName: 'Clinician' } }],
         },
       },
     ]);
-    const lines = textOf(await h.callTool('simplepractice_list_appointments', { view: 'brief' })).split('\n');
+    const lines = briefOf(await h.callTool('simplepractice_list_appointments', { view: 'brief' }));
     await h.close();
     expect(lines).toEqual([
       'Psychotherapy, 45 min with Test Clinician — 2026-11-10T10:00:00-05:00 — confirmed',
       expect.stringMatching(/^A+… — no date — scheduled$/),
       'Appointment — no date — scheduled',
     ]);
-    for (const line of lines) {
-      expect(line.length).toBeLessThanOrEqual(120);
-      expect(line).toMatch(BRIEF_SHAPE);
-    }
+    for (const line of lines) expect(line).toMatch(BRIEF_SHAPE);
   });
 
   it('appointments: a requested one says requested', async () => {
-    const h = await harness([
-      { body: { data: [{ id: '1', type: 'appointments', attributes: { startTime: '2026-11-11T09:00:00Z' } }] } },
-    ]);
-    const text = textOf(await h.callTool('simplepractice_list_appointments', { status: 'requested', view: 'brief' }));
+    const h = await harness([{ body: { data: [appt('1', { startTime: '2026-11-11T09:00:00Z' })] } }]);
+    const lines = briefOf(await h.callTool('simplepractice_list_appointments', { status: 'requested', view: 'brief' }));
     await h.close();
-    expect(text).toBe('Appointment — 2026-11-11T09:00:00Z — requested');
+    expect(lines).toEqual(['Appointment — 2026-11-11T09:00:00Z — requested']);
   });
 
-  it('appointments: nothing scheduled answers an empty text, not a line', async () => {
+  it('appointments: nothing scheduled answers the single note line "-- none"', async () => {
     const h = await harness([{ body: { data: [] } }]);
-    const text = textOf(await h.callTool('simplepractice_list_appointments', { view: 'brief' }));
+    const lines = briefOf(await h.callTool('simplepractice_list_appointments', { view: 'brief' }));
     await h.close();
-    expect(text).toBe('');
+    expect(lines).toEqual(['-- none']);
+  });
+
+  it('appointments: a full page (the other rungs\' hasMore) ends with a "-- more" note', async () => {
+    const h = await harness([
+      { body: { data: [appt('1', { serviceDescription: 'One' }), appt('2', { serviceDescription: 'Two' })] } },
+    ]);
+    const lines = briefOf(await h.callTool('simplepractice_list_appointments', { pageSize: 2, view: 'brief' }));
+    await h.close();
+    expect(lines).toEqual(['One — no date — scheduled', 'Two — no date — scheduled', '-- more']);
+  });
+
+  it('appointments: a title starting "-- " or "\\" is escaped with one leading backslash', async () => {
+    const h = await harness([
+      {
+        body: {
+          data: [
+            appt('1', { serviceDescription: '-- none' }),
+            appt('2', { serviceDescription: '\\x' }),
+            appt('3', { serviceDescription: '--dash' }),
+          ],
+        },
+      },
+    ]);
+    const lines = briefOf(await h.callTool('simplepractice_list_appointments', { view: 'brief' }));
+    await h.close();
+    expect(lines).toEqual([
+      '\\-- none — no date — scheduled',
+      '\\\\x — no date — scheduled',
+      '--dash — no date — scheduled',
+    ]);
+  });
+
+  it('appointments: a long status is cut with the line as a WHOLE, title first — never past 120', async () => {
+    const h = await harness([
+      {
+        body: {
+          data: [
+            appt('1', {
+              startTime: '2026-11-10T10:00:00Z',
+              serviceDescription: longTitle,
+              confirmationStatus: 'S'.repeat(150),
+            }),
+          ],
+        },
+      },
+    ]);
+    const [line] = briefOf(await h.callTool('simplepractice_list_appointments', { view: 'brief' }));
+    await h.close();
+    expect(line.length).toBeLessThanOrEqual(120);
+    expect(line).toMatch(/^A+… — 2026-11-10T10:00:00Z — S+…$/);
+    // The title keeps a readable stub rather than vanishing behind the status.
+    expect(line.indexOf(' — ')).toBeGreaterThanOrEqual(20);
   });
 
   it('document requests: outstanding paperwork only, title — no date — status', async () => {
@@ -230,22 +300,41 @@ describe('view "brief" on the canonical reads', () => {
             { id: '4', type: 'documentRequestInsuranceInfos', attributes: { status: 'viewed' } },
             { id: '5', type: 'documentRequestNotes', attributes: { documentTitle: longTitle } },
             { id: '6', type: ' ', attributes: { documentTitle: '  ', status: 'reviewing' } },
+            { id: '7', type: 'documentRequestNotes', attributes: { documentTitle: '-- 1 of 9 shown', status: 'sent' } },
           ],
         },
       },
     ]);
-    const lines = textOf(await h.callTool('simplepractice_list_document_requests', { view: 'brief' })).split('\n');
+    const lines = briefOf(await h.callTool('simplepractice_list_document_requests', { view: 'brief' }));
     await h.close();
     expect(lines).toEqual([
       'Consent form — no date — sent',
       'documentRequestInsuranceInfos — no date — viewed',
       expect.stringMatching(/^A+… — no date — outstanding$/),
       'Document request — no date — reviewing',
+      '\\-- 1 of 9 shown — no date — sent',
     ]);
-    for (const line of lines) {
-      expect(line.length).toBeLessThanOrEqual(120);
-      expect(line).toMatch(BRIEF_SHAPE);
-    }
+    for (const line of lines) expect(line).toMatch(BRIEF_SHAPE);
+  });
+
+  it('document requests: nothing outstanding answers "-- none"', async () => {
+    const h = await harness([
+      { body: { data: [{ id: '1', type: 'documentRequestNotes', attributes: { documentTitle: 'Done', status: 'completed' } }] } },
+    ]);
+    const lines = briefOf(await h.callTool('simplepractice_list_document_requests', { view: 'brief' }));
+    await h.close();
+    expect(lines).toEqual(['-- none']);
+  });
+
+  it('document requests: a full page says "-- more", and never "-- none" over rows it could not read', async () => {
+    const done = { id: '1', type: 'documentRequestNotes', attributes: { documentTitle: 'Done', status: 'completed' } };
+    const due = { id: '2', type: 'documentRequestNotes', attributes: { documentTitle: 'Due', status: 'sent' } };
+    const h = await harness([{ body: { data: [done, due] } }, { body: { data: [done, done] } }]);
+    const some = briefOf(await h.callTool('simplepractice_list_document_requests', { pageSize: 2, view: 'brief' }));
+    const none = briefOf(await h.callTool('simplepractice_list_document_requests', { pageSize: 2, view: 'brief' }));
+    await h.close();
+    expect(some).toEqual(['Due — no date — sent', '-- more']);
+    expect(none).toEqual(['-- more']);
   });
 
   it('document requests: the default view is unchanged', async () => {
@@ -266,17 +355,30 @@ describe('view "brief" on the canonical reads', () => {
             { id: '2', type: 'announcements', attributes: { title: 'Old news', createdAt: '2026-10-01T12:00:00Z', readAt: '2026-10-02' } },
             { id: '3', type: 'announcements', attributes: { title: 'New\nportal\tfeature', publishedAt: '2026-11-02T08:00:00Z' } },
             { id: '4', type: 'announcements', attributes: {} },
+            { id: '5', type: 'announcements', attributes: { title: '\\-- sneaky' } },
           ],
         },
       },
     ]);
-    const lines = textOf(await h.callTool('simplepractice_list_announcements', { view: 'brief' })).split('\n');
+    const lines = briefOf(await h.callTool('simplepractice_list_announcements', { view: 'brief' }));
     await h.close();
     expect(lines).toEqual([
       'Office closed Monday — 2026-11-01T12:00:00Z — unread',
       'New portal feature — 2026-11-02T08:00:00Z — unread',
       'Announcement — no date — unread',
+      '\\\\-- sneaky — no date — unread',
     ]);
     for (const line of lines) expect(line).toMatch(BRIEF_SHAPE);
+  });
+
+  it('announcements: nothing unread answers "-- none"; a full page says "-- more"', async () => {
+    const read = { id: '1', type: 'announcements', attributes: { title: 'Old', readAt: '2026-10-02' } };
+    const unread = { id: '2', type: 'announcements', attributes: { title: 'New', readAt: null } };
+    const h = await harness([{ body: { data: [read] } }, { body: { data: [read, unread] } }]);
+    const none = briefOf(await h.callTool('simplepractice_list_announcements', { view: 'brief' }));
+    const more = briefOf(await h.callTool('simplepractice_list_announcements', { pageSize: 2, view: 'brief' }));
+    await h.close();
+    expect(none).toEqual(['-- none']);
+    expect(more).toEqual(['New — no date — unread', '-- more']);
   });
 });

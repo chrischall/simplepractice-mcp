@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { briefViewArg, viewArg, viewArgWithBrief, viewResponse } from '../view.js';
-import { briefLine, briefResult, healthMeta, oneLine } from '../hints.js';
+import { briefLine, briefNotes, briefResult, healthMeta, oneLine } from '../hints.js';
 import {
   minifiedResult,
   toolAnnotations,
@@ -82,16 +82,20 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       });
       if (view === 'brief') {
         return briefResult(
-          records
-            .filter((r) => !SETTLED.has(String(r.status)))
-            .map((r) =>
-              // The portal sets no due date on a request, so none is invented.
-              briefLine(
-                oneLine(r.documentTitle) ?? oneLine(r.type) ?? 'Document request',
-                undefined,
-                oneLine(r.status) ?? 'outstanding'
-              )
-            )
+          briefNotes(
+            records
+              .filter((r) => !SETTLED.has(String(r.status)))
+              .map((r) =>
+                // The portal sets no due date on a request, so none is invented.
+                briefLine(
+                  oneLine(r.documentTitle) ?? oneLine(r.type) ?? 'Document request',
+                  undefined,
+                  oneLine(r.status) ?? 'outstanding'
+                )
+              ),
+            hasMore(records, pageSize)
+          ),
+          PRACTICE_TEXT_NOTE
         );
       }
       const filtered = outstandingOnly
@@ -208,21 +212,23 @@ export function registerDocumentTools(server: McpServer, client: SimplePracticeC
       if (view === 'brief') {
         // What is NEW: the unread announcements only (readAt null or absent,
         // the same rule as the unread count below). The date is when it was
-        // posted, under whichever name the record carries. Brief answers carry
-        // no untrusted envelope — a host reads them line by line, and a marker
-        // line would count as an item — so the practice-written text is
-        // flattened to one line and cut at 120 characters instead, and the
-        // tool description still carries the untrusted-text warning.
+        // posted, under whichever name the record carries. The titles are the
+        // practice's, so the lines ride in the untrusted envelope like the
+        // other rungs' records.
         return briefResult(
-          records
-            .filter((r) => r.readAt === null || r.readAt === undefined)
-            .map((r) =>
-              briefLine(
-                oneLine(r.title) ?? 'Announcement',
-                oneLine(r.publishedAt) ?? oneLine(r.createdAt),
-                'unread'
-              )
-            )
+          briefNotes(
+            records
+              .filter((r) => r.readAt === null || r.readAt === undefined)
+              .map((r) =>
+                briefLine(
+                  oneLine(r.title) ?? 'Announcement',
+                  oneLine(r.publishedAt) ?? oneLine(r.createdAt),
+                  'unread'
+                )
+              ),
+            hasMore(records, pageSize)
+          ),
+          PRACTICE_TEXT_NOTE
         );
       }
       // Verbatim upstream records again. An announcement is text the practice

@@ -38,7 +38,7 @@ export const viewArg = (): ReturnType<typeof viewParam> => viewParam(SP_VIEWS, {
 
 const BRIEF_NOTE =
   '"brief" answers one text line per item — title — <ISO date or "no date"> — <status> — for a host ' +
-  'that only needs to say what is there.';
+  'that only needs to say what is there, with "-- " note lines for an empty or full page.';
 
 /**
  * The `view` parameter of a context-group canonical read (src/hints.ts): the
