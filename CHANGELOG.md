@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/chrischall/simplepractice-mcp/compare/v1.3.1...v1.3.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **deps:** bump @chrischall/mcp-utils from 3.4.0 to 3.4.1 in the production-dependencies group ([#118](https://github.com/chrischall/simplepractice-mcp/issues/118)) ([402ff90](https://github.com/chrischall/simplepractice-mcp/commit/402ff90a8064d43d43d205d7f679a265f0447476))
+
 ## [1.3.1](https://github.com/chrischall/simplepractice-mcp/compare/v1.3.0...v1.3.1) (2026-11-04)
 
 
